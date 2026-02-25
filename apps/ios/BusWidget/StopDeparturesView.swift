@@ -41,6 +41,10 @@ struct StopDeparturesView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+
+                    Text("RT = realtime, SCH = scheduled")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -50,6 +54,13 @@ struct StopDeparturesView: View {
                         Text(departure.line)
                             .font(.headline)
                         Spacer()
+                        Text(departure.isRealtime ? "RT" : "SCH")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(departure.isRealtime ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
+                            .clipShape(Capsule())
                         Text("\(departure.minutesUntilDeparture) min")
                             .font(.headline)
                     }

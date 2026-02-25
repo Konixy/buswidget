@@ -22,6 +22,7 @@ export const departureSchema = v.object({
   departureIso: v.string(),
   minutesUntilDeparture: v.number(),
   sourceUrl: v.string(),
+  isRealtime: v.boolean(),
 });
 
 export const stopSearchResponseSchema = v.object({

@@ -60,4 +60,5 @@ Before running on device:
 ## Notes
 
 - Widget can be configured per instance to show departures for a selected favorite stop.
+- Departures in app and widget show `RT` for realtime and `SCH` for scheduled fallback.
 - Widget refresh is timeline-driven and not guaranteed to run every minute.

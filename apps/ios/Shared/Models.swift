@@ -81,6 +81,20 @@ public struct Departure: Codable, Hashable {
     public let departureIso: String
     public let minutesUntilDeparture: Int
     public let sourceUrl: String
+    public let isRealtime: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case stopId
+        case stopName
+        case routeId
+        case line
+        case destination
+        case departureUnix
+        case departureIso
+        case minutesUntilDeparture
+        case sourceUrl
+        case isRealtime
+    }
 
     public init(
         stopId: String,
@@ -91,7 +105,8 @@ public struct Departure: Codable, Hashable {
         departureUnix: Int,
         departureIso: String,
         minutesUntilDeparture: Int,
-        sourceUrl: String
+        sourceUrl: String,
+        isRealtime: Bool = false
     ) {
         self.stopId = stopId
         self.stopName = stopName
@@ -102,6 +117,21 @@ public struct Departure: Codable, Hashable {
         self.departureIso = departureIso
         self.minutesUntilDeparture = minutesUntilDeparture
         self.sourceUrl = sourceUrl
+        self.isRealtime = isRealtime
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        stopId = try container.decode(String.self, forKey: .stopId)
+        stopName = try container.decode(String.self, forKey: .stopName)
+        routeId = try container.decode(String.self, forKey: .routeId)
+        line = try container.decode(String.self, forKey: .line)
+        destination = try container.decode(String.self, forKey: .destination)
+        departureUnix = try container.decode(Int.self, forKey: .departureUnix)
+        departureIso = try container.decode(String.self, forKey: .departureIso)
+        minutesUntilDeparture = try container.decode(Int.self, forKey: .minutesUntilDeparture)
+        sourceUrl = try container.decode(String.self, forKey: .sourceUrl)
+        isRealtime = try container.decodeIfPresent(Bool.self, forKey: .isRealtime) ?? false
     }
 }
 
