@@ -2,6 +2,56 @@ import WidgetKit
 import SwiftUI
 import AppIntents
 
+struct FavoriteStopEntity: AppEntity {
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Favorite Stop")
+    static var defaultQuery = FavoriteStopEntityQuery()
+
+    let id: String
+    let name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)", subtitle: "\(id)")
+    }
+
+    init(id: String, name: String) {
+        self.id = id
+        self.name = name
+    }
+
+    init(favorite: FavoriteStop) {
+        self.id = favorite.id
+        self.name = favorite.stop.name
+    }
+}
+
+struct FavoriteStopEntityQuery: EntityQuery {
+    func entities(for identifiers: [FavoriteStopEntity.ID]) async throws -> [FavoriteStopEntity] {
+        let favorites = FavoritesStore().all()
+        let favoritesById = Dictionary(uniqueKeysWithValues: favorites.map { ($0.id, $0) })
+
+        return identifiers.compactMap { identifier in
+            guard let favorite = favoritesById[identifier] else { return nil }
+            return FavoriteStopEntity(favorite: favorite)
+        }
+    }
+
+    func suggestedEntities() async throws -> [FavoriteStopEntity] {
+        FavoritesStore().all().map(FavoriteStopEntity.init(favorite:))
+    }
+
+    func defaultResult() async -> FavoriteStopEntity? {
+        FavoritesStore().all().first.map(FavoriteStopEntity.init(favorite:))
+    }
+}
+
+struct BusWidgetConfigurationIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Favorite Stop"
+    static var description = IntentDescription("Choose which favorite stop this widget should display.")
+
+    @Parameter(title: "Stop")
+    var stop: FavoriteStopEntity?
+}
+
 struct RefreshDeparturesIntent: AppIntent {
     static var title: LocalizedStringResource = "Refresh departures"
     static var openAppWhenRun = false
@@ -19,7 +69,9 @@ struct BusWidgetEntry: TimelineEntry {
     let errorMessage: String?
 }
 
-struct BusWidgetProvider: TimelineProvider {
+struct BusWidgetProvider: AppIntentTimelineProvider {
+    typealias Intent = BusWidgetConfigurationIntent
+
     func placeholder(in context: Context) -> BusWidgetEntry {
         BusWidgetEntry(
             date: .now,
@@ -41,23 +93,21 @@ struct BusWidgetProvider: TimelineProvider {
         )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (BusWidgetEntry) -> Void) {
-        completion(placeholder(in: context))
+    func snapshot(for configuration: BusWidgetConfigurationIntent, in context: Context) async -> BusWidgetEntry {
+        await loadEntry(configuration: configuration)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<BusWidgetEntry>) -> Void) {
-        Task {
-            let entry = await loadEntry()
-            let refreshDate = Calendar.current.date(byAdding: .minute, value: 5, to: .now) ?? .now.addingTimeInterval(300)
-            completion(Timeline(entries: [entry], policy: .after(refreshDate)))
-        }
+    func timeline(for configuration: BusWidgetConfigurationIntent, in context: Context) async -> Timeline<BusWidgetEntry> {
+        let entry = await loadEntry(configuration: configuration)
+        let refreshDate = Calendar.current.date(byAdding: .minute, value: 5, to: .now) ?? .now.addingTimeInterval(300)
+        return Timeline(entries: [entry], policy: .after(refreshDate))
     }
 
-    private func loadEntry() async -> BusWidgetEntry {
+    private func loadEntry(configuration: BusWidgetConfigurationIntent) async -> BusWidgetEntry {
         let favoritesStore = FavoritesStore()
         let favorites = favoritesStore.all()
 
-        guard let firstFavorite = favorites.first else {
+        guard !favorites.isEmpty else {
             return BusWidgetEntry(
                 date: .now,
                 stop: nil,
@@ -66,29 +116,48 @@ struct BusWidgetProvider: TimelineProvider {
             )
         }
 
+        let selectedFavorite: FavoriteStop
+        if let selectedStopId = configuration.stop?.id {
+            guard let favorite = favorites.first(where: { $0.id == selectedStopId }) else {
+                return BusWidgetEntry(
+                    date: .now,
+                    stop: nil,
+                    departures: [],
+                    errorMessage: "Selected favorite is no longer available"
+                )
+            }
+            selectedFavorite = favorite
+        } else {
+            selectedFavorite = favorites[0]
+        }
+
         let client = APIClient(baseURL: AppConfiguration.baseURL(bundle: .main))
 
         do {
+            let selectedLines = Array(
+                Set(
+                    selectedFavorite.selectedLines
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                )
+            ).sorted()
             let response = try await client.departures(
-                stopId: firstFavorite.stop.id,
+                stopId: selectedFavorite.stop.id,
                 limit: 6,
-                maxMinutes: 240
+                maxMinutes: 240,
+                lines: selectedLines.isEmpty ? nil : selectedLines
             )
-            let selectedLines = Set(firstFavorite.selectedLines)
-            let filteredDepartures = selectedLines.isEmpty
-                ? response.departures
-                : response.departures.filter { selectedLines.contains($0.line) }
 
             return BusWidgetEntry(
                 date: .now,
-                stop: response.stop ?? firstFavorite.stop,
-                departures: Array(filteredDepartures.prefix(4)),
+                stop: response.stop ?? selectedFavorite.stop,
+                departures: Array(response.departures.prefix(3)),
                 errorMessage: nil
             )
         } catch {
             return BusWidgetEntry(
                 date: .now,
-                stop: firstFavorite.stop,
+                stop: selectedFavorite.stop,
                 departures: [],
                 errorMessage: "Unable to refresh departures"
             )
@@ -97,8 +166,7 @@ struct BusWidgetProvider: TimelineProvider {
 }
 
 struct BusWidgetWidgetEntryView: View {
-    @Environment(\.widgetFamily) private var family
-    let entry: BusWidgetProvider.Entry
+    let entry: BusWidgetEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -116,7 +184,7 @@ struct BusWidgetWidgetEntryView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                let shown = family == .systemSmall ? Array(entry.departures.prefix(2)) : Array(entry.departures.prefix(4))
+                let shown = Array(entry.departures.prefix(3))
                 ForEach(shown, id: \.departureIso) { departure in
                     HStack {
                         Text(departure.line)
@@ -164,11 +232,11 @@ struct BusWidgetWidget: Widget {
     let kind: String = "BusWidgetWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: BusWidgetProvider()) { entry in
+        AppIntentConfiguration(kind: kind, intent: BusWidgetConfigurationIntent.self, provider: BusWidgetProvider()) { entry in
             BusWidgetWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Rouen Departures")
-        .description("Shows upcoming departures for your first favorite stop and selected lines.")
+        .description("Shows upcoming departures for a selected favorite stop and selected lines.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

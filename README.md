@@ -53,7 +53,7 @@ The API will bind to `0.0.0.0` and print LAN URLs (for example `http://192.168.x
 
 - `GET /health`
 - `GET /v1/rouen/stops/search?q=theatre&limit=10`
-- `GET /v1/rouen/stops/:stopId/departures?limit=8&maxMinutes=90`
+- `GET /v1/rouen/stops/:stopId/departures?limit=8&maxMinutes=90&lines=T2,F` (`lines` optional, comma-separated)
 
 ## Tests
 

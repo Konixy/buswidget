@@ -16,6 +16,24 @@ const parseIntQuery = (defaultValue: number, minValue: number, maxValue: number)
     v.maxValue(maxValue),
   );
 
+const parseLinesQuery = () =>
+  v.pipe(
+    v.optional(v.string(), ""),
+    v.transform((value) =>
+      Array.from(
+        new Set(
+          value
+            .split(",")
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0)
+            .map((line) => line.toLocaleUpperCase("fr-FR")),
+        ),
+      ),
+    ),
+    v.array(v.string()),
+    v.maxLength(20),
+  );
+
 const querySearchSchema = v.object({
   q: v.pipe(v.string(), v.trim(), v.minLength(2)),
   limit: parseIntQuery(20, 1, 50),
@@ -24,6 +42,7 @@ const querySearchSchema = v.object({
 const departuresQuerySchema = v.object({
   limit: parseIntQuery(8, 1, 20),
   maxMinutes: parseIntQuery(90, 1, 240),
+  lines: parseLinesQuery(),
 });
 
 type AppDeps = {
@@ -33,6 +52,7 @@ type AppDeps = {
     stopId: string;
     maxMinutesAhead: number;
     limit: number;
+    lines: string[];
     staticGtfsUrl: string;
     staticCacheTtlMinutes: number;
     tripUpdatesUrls: string[];
@@ -103,6 +123,7 @@ export const createApp = (deps: AppDeps) => {
         stopId,
         limit: parsed.output.limit,
         maxMinutesAhead: parsed.output.maxMinutes,
+        lines: parsed.output.lines,
         staticGtfsUrl: deps.config.rouenStaticGtfsUrl,
         staticCacheTtlMinutes: deps.config.rouenStaticCacheTtlMinutes,
         tripUpdatesUrls: deps.config.rouenTripUpdatesUrls,

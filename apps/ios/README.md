@@ -59,5 +59,5 @@ Before running on device:
 
 ## Notes
 
-- Widget reads the first favorite stop and shows upcoming departures.
+- Widget can be configured per instance to show departures for a selected favorite stop.
 - Widget refresh is timeline-driven and not guaranteed to run every minute.

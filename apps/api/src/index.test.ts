@@ -55,13 +55,21 @@ describe("api routes", () => {
     const { app, getDepartures } = buildTestApp();
 
     const response = await app.request(
-      "/v1/rouen/stops/TAE:1131/departures?limit=2&maxMinutes=120",
+      "/v1/rouen/stops/TAE:1131/departures?limit=2&maxMinutes=120&lines=t2,%20f,,T2",
     );
     const json = await response.json();
 
     expect(response.status).toBe(200);
     expect(Array.isArray(json.departures)).toBe(true);
     expect(getDepartures).toHaveBeenCalledTimes(1);
+    expect(getDepartures).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stopId: "TAE:1131",
+        limit: 2,
+        maxMinutesAhead: 120,
+        lines: ["T2", "F"],
+      }),
+    );
   });
 
   it("maps departures errors to 502", async () => {

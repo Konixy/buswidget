@@ -138,6 +138,8 @@ const normalizeForSearch = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
+const normalizeLineName = (value: string) => value.trim().toLocaleUpperCase("fr-FR");
+
 const getStopProvider = (stopId: string): string => {
   const [provider] = stopId.split(":", 1);
   return provider ?? "";
@@ -365,12 +367,15 @@ export const getRouenDeparturesForStop = async (args: {
   stopId: string;
   maxMinutesAhead: number;
   limit: number;
+  lines: string[];
   staticGtfsUrl: string;
   staticCacheTtlMinutes: number;
   tripUpdatesUrls: string[];
 }) => {
   const nowUnix = Math.floor(Date.now() / 1000);
   const maxUnix = nowUnix + args.maxMinutesAhead * 60;
+  const lineFilter = new Set(args.lines.map(normalizeLineName));
+  const hasLineFilter = lineFilter.size > 0;
 
   const staticData = await loadRouenStaticData(
     args.staticGtfsUrl,
@@ -435,12 +440,17 @@ export const getRouenDeparturesForStop = async (args: {
             typeof stopTimeRecord.stopHeadsign === "string"
               ? stopTimeRecord.stopHeadsign
               : "";
+          const line = routeInfo?.shortName || routeId || DEFAULT_STRING;
+
+          if (hasLineFilter && !lineFilter.has(normalizeLineName(line))) {
+            continue;
+          }
 
           departures.push({
             stopId,
             stopName: stopInfo?.name ?? DEFAULT_STRING,
             routeId,
-            line: routeInfo?.shortName || routeId || DEFAULT_STRING,
+            line,
             destination:
               stopHeadsign || fallbackHeadsign || routeInfo?.longName || DEFAULT_STRING,
             departureUnix,

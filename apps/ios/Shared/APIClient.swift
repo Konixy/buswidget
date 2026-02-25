@@ -50,15 +50,33 @@ public final class APIClient {
         return try await send(url: url)
     }
 
-    public func departures(stopId: String, limit: Int = 8, maxMinutes: Int = 90) async throws -> StopDeparturesResponse {
+    public func departures(
+        stopId: String,
+        limit: Int = 8,
+        maxMinutes: Int = 90,
+        lines: [String]? = nil
+    ) async throws -> StopDeparturesResponse {
         var components = URLComponents(
             url: baseURL.appending(path: "/v1/rouen/stops/\(stopId)/departures"),
             resolvingAgainstBaseURL: false
         )
-        components?.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "limit", value: String(limit)),
             URLQueryItem(name: "maxMinutes", value: String(maxMinutes))
         ]
+        if let lines, !lines.isEmpty {
+            let normalizedLines = Array(
+                Set(
+                    lines
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                )
+            ).sorted()
+            if !normalizedLines.isEmpty {
+                queryItems.append(URLQueryItem(name: "lines", value: normalizedLines.joined(separator: ",")))
+            }
+        }
+        components?.queryItems = queryItems
 
         guard let url = components?.url else {
             throw APIClientError.invalidURL

@@ -41,7 +41,7 @@ It has:
 - Search Rouen stops from static GTFS stop list.
 - Favorite/unfavorite stops in app.
 - Show departures in stop detail screen.
-- Widget shows departures for the **first favorite** stop.
+- Widget can be configured per instance to choose a favorite stop.
 - Widget refresh policy is timeline-based (`.after(...)`), not high-frequency polling.
 
 ## Backend details
@@ -58,7 +58,7 @@ It has:
 
 - `GET /health`
 - `GET /v1/rouen/stops/search?q=...&limit=...`
-- `GET /v1/rouen/stops/:stopId/departures?limit=...&maxMinutes=...`
+- `GET /v1/rouen/stops/:stopId/departures?limit=...&maxMinutes=...&lines=...` (`lines` optional, comma-separated)
 
 ### Important env vars
 
@@ -163,7 +163,6 @@ Notes:
 
 Planned next steps (not yet implemented):
 
-- Widget configuration to choose a specific favorite stop.
 - Batch departures backend endpoint for widget efficiency.
 - Better offline/stale-data UX in iOS.
 - iOS CI once suitable Xcode 26 runners are available.
