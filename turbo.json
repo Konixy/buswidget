@@ -9,6 +9,10 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "start": {
+      "dependsOn": ["^start"],
+      "outputs": []
+    },
     "check": {
       "dependsOn": ["^check"],
       "outputs": []

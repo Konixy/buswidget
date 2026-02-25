@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "start": "turbo start",
     "check": "turbo check",
     "test": "turbo test",
     "test:real": "turbo test:real --filter=@buswidget/api",
