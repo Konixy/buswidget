@@ -6,10 +6,9 @@ struct StopDeparturesView: View {
     let preferredLines: Set<String>
 
     @State private var departures: [Departure] = []
-    @State private var lastUpdated: Date?
-    @State private var resolvedStopName: String?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var favoriteSetupStop: StopInfo?
     private var isShowingError: Binding<Bool> {
         Binding(
             get: { errorMessage != nil },
@@ -24,45 +23,21 @@ struct StopDeparturesView: View {
 
     var body: some View {
         List {
-            if let lastUpdated {
-                Section {
-                    Text("Updated \(lastUpdated.formatted(date: .omitted, time: .shortened))")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                    if let resolvedStopName, resolvedStopName != stop.name {
-                        Text("Showing departures near \(resolvedStopName)")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if !preferredLines.isEmpty {
-                        Text("Filtered lines: \(preferredLines.sorted().joined(separator: ", "))")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Text("RT = realtime, SCH = scheduled")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             ForEach(departures, id: \.departureIso) { departure in
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text(departure.line)
                             .font(.headline)
                         Spacer()
-                        Text(departure.isRealtime ? "RT" : "SCH")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(departure.isRealtime ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
-                            .clipShape(Capsule())
-                        Text("\(departure.minutesUntilDeparture) min")
-                            .font(.headline)
+                        HStack(spacing: 4) {
+                            if departure.isRealtime {
+                                Image(systemName: "wave.3.left")
+                                    .font(.caption2)
+                                    .foregroundStyle(.green)
+                            }
+                            Text("\(departure.minutesUntilDeparture) min")
+                                .font(.headline)
+                        }
                     }
 
                     Text(departure.destination)
@@ -92,6 +67,14 @@ struct StopDeparturesView: View {
         .navigationTitle(stop.name)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    favoriteSetupStop = stop
+                } label: {
+                    Image(systemName: model.isFavorite(stop) ? "star.fill" : "star")
+                        .foregroundStyle(.yellow)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 if isLoading {
                     ProgressView()
                 }
@@ -110,6 +93,22 @@ struct StopDeparturesView: View {
         }, message: {
             Text(errorMessage ?? "Unknown error")
         })
+        .sheet(item: $favoriteSetupStop) { favoriteStop in
+            FavoriteStopOptionsSheet(
+                stop: favoriteStop,
+                initialSelection: Set(model.favorite(for: favoriteStop)?.selectedLines ?? []),
+                isAlreadyFavorite: model.isFavorite(favoriteStop),
+                onCancel: { favoriteSetupStop = nil },
+                onSave: { selectedLines in
+                    model.saveFavorite(favoriteStop, selectedLines: selectedLines)
+                    favoriteSetupStop = nil
+                },
+                onRemove: {
+                    model.removeFavorite(favoriteStop)
+                    favoriteSetupStop = nil
+                }
+            )
+        }
     }
 
     private func loadDepartures() async {
@@ -137,8 +136,6 @@ struct StopDeparturesView: View {
             }
 
             departures = filteredDepartures(from: response)
-            resolvedStopName = response.stop?.name
-            lastUpdated = Date()
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription

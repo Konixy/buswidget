@@ -118,7 +118,13 @@ private struct StopSearchResultRow: View {
     let onFavoriteTap: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
+            Button(action: onFavoriteTap) {
+                Image(systemName: isFavorite ? "star.fill" : "star")
+                    .foregroundStyle(.yellow)
+            }
+            .buttonStyle(.borderless)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(stop.name)
                     .font(.headline)
@@ -132,24 +138,14 @@ private struct StopSearchResultRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-
-                Text(StopPresentation.stopLabel(for: stop))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
 
             Spacer()
-
-            Button(action: onFavoriteTap) {
-                Image(systemName: isFavorite ? "star.fill" : "star")
-                    .foregroundStyle(.yellow)
-            }
-            .buttonStyle(.borderless)
         }
     }
 }
 
-private struct FavoriteStopOptionsSheet: View {
+struct FavoriteStopOptionsSheet: View {
     let stop: StopInfo
     let isAlreadyFavorite: Bool
     let onCancel: () -> Void
@@ -286,15 +282,4 @@ private enum StopPresentation {
         return modes.joined(separator: " | ")
     }
 
-    static func stopLabel(for stop: StopInfo) -> String {
-        if let stopCode = stop.stopCode, !stopCode.isEmpty {
-            return "Code \(stopCode)"
-        }
-
-        if let suffix = stop.id.split(separator: ":").last {
-            return String(suffix)
-        }
-
-        return stop.id
-    }
 }

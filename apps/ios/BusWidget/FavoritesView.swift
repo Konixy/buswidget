@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FavoritesView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var favoriteSetupStop: StopInfo?
 
     var body: some View {
         NavigationStack {
@@ -32,11 +33,15 @@ struct FavoritesView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-
-                            Text(favorite.stop.id)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
                         }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button {
+                            favoriteSetupStop = favorite.stop
+                        } label: {
+                            Label("Edit lines", systemImage: "slider.horizontal.3")
+                        }
+                        .tint(.blue)
                     }
                 }
                 .onDelete(perform: removeStops)
@@ -51,6 +56,22 @@ struct FavoritesView: View {
                 }
             }
             .navigationTitle("Favorites")
+            .sheet(item: $favoriteSetupStop) { stop in
+                FavoriteStopOptionsSheet(
+                    stop: stop,
+                    initialSelection: Set(model.favorite(for: stop)?.selectedLines ?? []),
+                    isAlreadyFavorite: model.isFavorite(stop),
+                    onCancel: { favoriteSetupStop = nil },
+                    onSave: { selectedLines in
+                        model.saveFavorite(stop, selectedLines: selectedLines)
+                        favoriteSetupStop = nil
+                    },
+                    onRemove: {
+                        model.removeFavorite(stop)
+                        favoriteSetupStop = nil
+                    }
+                )
+            }
         }
     }
 
