@@ -1,0 +1,12 @@
+.DS_Store
+node_modules
+.turbo
+dist
+coverage
+.env
+.env.local
+DerivedData
+*.xcworkspace/xcuserdata
+*.xcodeproj/xcuserdata
+*.xcodeproj/project.xcworkspace/xcuserdata
+*.xcuserstate

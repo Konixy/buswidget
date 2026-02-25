@@ -1,0 +1,22 @@
+{
+  "name": "buswidget",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check": "turbo check",
+    "test": "turbo test",
+    "test:real": "turbo test:real --filter=@buswidget/api",
+    "ios:generate": "xcodegen generate --spec apps/ios/project.yml",
+    "api:dev:lan": "bun --cwd=apps/api run dev:lan"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.6",
+    "typescript": "^5.8.2"
+  },
+  "packageManager": "bun@1.2.22"
+}

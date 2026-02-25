@@ -1,0 +1,84 @@
+name: BusWidget
+options:
+  deploymentTarget:
+    iOS: 26.0
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    DEVELOPMENT_TEAM: 5V374BVGUD
+    CODE_SIGN_STYLE: Automatic
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+targets:
+  BusWidget:
+    type: application
+    platform: iOS
+    sources:
+      - path: BusWidget
+        excludes:
+          - Info.plist
+          - "*.entitlements"
+      - path: BusWidget.icon
+      - path: Shared
+        excludes:
+          - "**/*.plist"
+    dependencies:
+      - target: BusWidgetWidgetExtension
+        embed: true
+    info:
+      path: BusWidget/Info.plist
+      properties:
+        CFBundleDisplayName: BusWidget
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLSchemes:
+              - buswidget
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        API_BASE_URL: http://172.20.10.2:3000
+    entitlements:
+      path: BusWidget/BusWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.buswidget.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.buswidget.ios
+        CODE_SIGN_ENTITLEMENTS: BusWidget/BusWidget.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: BusWidget
+
+  BusWidgetWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: BusWidgetWidget
+        excludes:
+          - Info.plist
+          - "*.entitlements"
+      - path: Shared
+        excludes:
+          - "**/*.plist"
+    info:
+      path: BusWidgetWidget/Info.plist
+      properties:
+        CFBundleDisplayName: BusWidget Widget
+        API_BASE_URL: http://172.20.10.2:3000
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: BusWidgetWidget/BusWidgetWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.buswidget.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.buswidget.ios.widget
+        CODE_SIGN_ENTITLEMENTS: BusWidgetWidget/BusWidgetWidget.entitlements
+
+schemes:
+  BusWidget:
+    build:
+      targets:
+        BusWidget: all
+    run:
+      config: Debug
