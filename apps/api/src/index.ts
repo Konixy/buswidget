@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { logger } from "hono/logger";
 import { networkInterfaces } from "node:os";
 import * as v from "valibot";
 
@@ -27,12 +28,7 @@ const departuresQuerySchema = v.object({
 
 type AppDeps = {
   config: typeof env;
-  searchStops: (args: {
-    query: string;
-    limit: number;
-    staticGtfsUrl: string;
-    staticCacheTtlMinutes: number;
-  }) => Promise<unknown>;
+  searchStops: (args: { query: string; limit: number; staticGtfsUrl: string; staticCacheTtlMinutes: number }) => Promise<unknown>;
   getDepartures: (args: {
     stopId: string;
     maxMinutesAhead: number;
@@ -51,6 +47,8 @@ const formatIssues = (issues: v.BaseIssue<unknown>[]) =>
 
 export const createApp = (deps: AppDeps) => {
   const app = new Hono();
+
+  app.use(logger());
 
   app.get("/health", (c) => {
     return c.json({
