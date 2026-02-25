@@ -17,14 +17,12 @@ Primary source comes from `transport.data.gouv.fr` dataset:
 
 Relevant endpoints used now:
 
-- Static GTFS zip (stops, routes, trips):
+- Static GTFS zip (stop search metadata):
   - `https://api.mrn.cityway.fr/dataflow/offre-tc/download?provider=ASTUCE&dataFormat=gtfs&dataProfil=ASTUCE`
-- GTFS-RT Trip Updates (real-time departures):
-  - `https://api.mrn.cityway.fr/dataflow/horaire-tc-tr/download?provider=TCAR&dataFormat=gtfs-rt`
-  - `https://api.mrn.cityway.fr/dataflow/horaire-tc-tr/download?provider=TNI&dataFormat=gtfs-rt`
-  - `https://api.mrn.cityway.fr/dataflow/horaire-tc-tr/download?provider=TAE&dataFormat=gtfs-rt`
+- Cityway blended departures (realtime + schedule):
+  - `https://api.mrn.cityway.fr/media/api/v1/en/Schedules/LogicalStop/{logicalStopId}/NextDeparture?...`
 
-These feeds are protobuf GTFS-RT (`application/x-protobuf` style binary data), so the backend decodes them server-side and returns JSON to the app/widget.
+Backend resolves Cityway physical/logical stop identifiers from stop coordinates and maps Cityway payloads into the app JSON contract.
 
 ## Project layout
 
@@ -55,7 +53,7 @@ The API will bind to `0.0.0.0` and print LAN URLs (for example `http://192.168.x
 - `GET /v1/rouen/stops/search?q=theatre&limit=10`
 - `GET /v1/rouen/stops/:stopId/departures?limit=8&maxMinutes=90&lines=T2,F` (`lines` optional, comma-separated)
 
-Departures are blended from realtime GTFS-RT updates and static GTFS schedule fallback.
+Departures are sourced from Cityway `NextDeparture`, which already blends realtime and scheduled times.
 Each departure includes `isRealtime` to indicate if the timestamp is live (`true`) or scheduled (`false`).
 
 ## Tests

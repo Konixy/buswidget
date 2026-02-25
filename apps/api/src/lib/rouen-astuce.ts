@@ -1,5 +1,4 @@
 import { parse } from "csv-parse/sync";
-import GtfsRealtimeBindings from "gtfs-realtime-bindings";
 import JSZip from "jszip";
 
 export type StopInfo = {
@@ -540,36 +539,156 @@ export const loadRouenStaticData = async (staticGtfsUrl: string, ttlMinutes: num
   return staticCache.loadingPromise;
 };
 
-const getDepartureUnix = (stopTimeUpdate: Record<string, unknown>): number | null => {
-  const arrival = stopTimeUpdate.arrival as Record<string, unknown> | undefined;
-  const departure = stopTimeUpdate.departure as Record<string, unknown> | undefined;
-
-  return fromLongLike(arrival?.time) ?? fromLongLike(departure?.time);
+type CitywayTripPoint = {
+  Id: number;
+  LogicalStopId: number;
+  Latitude: number;
+  Longitude: number;
+  Name?: string;
 };
 
-const decodeTripUpdates = (buffer: ArrayBuffer) => {
-  const uint8Array = new Uint8Array(buffer);
-  return GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(uint8Array);
+type CitywayTripPointResponse = {
+  Data?: CitywayTripPoint[];
+  StatusCode?: number;
+  Message?: string;
 };
 
-const isServiceActiveOnDate = (serviceId: string, dateKey: number, staticData: StaticGtfsData): boolean => {
-  const exceptionsForDate = staticData.serviceExceptionsByDate.get(dateKey);
-  const exceptionType = exceptionsForDate?.get(serviceId);
-  if (exceptionType === 1) {
-    return true;
+type CitywayLine = {
+  id?: number;
+  number?: string;
+  name?: string;
+};
+
+type CitywayDirection = {
+  id?: number;
+  name?: string;
+};
+
+type CitywayStop = {
+  id?: number;
+  code?: string;
+  name?: string;
+};
+
+type CitywayTimeDestination = {
+  name?: string;
+};
+
+type CitywayTime = {
+  dateTime?: string;
+  realDateTime?: string | null;
+  destination?: CitywayTimeDestination;
+};
+
+type CitywayLineEntry = {
+  line?: CitywayLine;
+  direction?: CitywayDirection;
+  stop?: CitywayStop;
+  times?: CitywayTime[];
+};
+
+type CitywayLogicalStopGroup = {
+  lines?: CitywayLineEntry[];
+};
+
+const parseCitywayLocalDateTimeToUnix = (value: string): number | null => {
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+  if (!match) {
+    return null;
   }
-  if (exceptionType === 2) {
-    return false;
+  const year = Number(match[1] ?? "0");
+  const month = Number(match[2] ?? "0");
+  const day = Number(match[3] ?? "0");
+  const hour = Number(match[4] ?? "0");
+  const minute = Number(match[5] ?? "0");
+  const second = Number(match[6] ?? "0");
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day) ||
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute) ||
+    !Number.isFinite(second)
+  ) {
+    return null;
+  }
+  const dateKey = year * 10000 + month * 100 + day;
+  const secondsFromMidnight = hour * 3600 + minute * 60 + second;
+  return toUnixFromParisDateAndSeconds(dateKey, secondsFromMidnight);
+};
+
+const dedupeCitywayPoints = (points: CitywayTripPoint[]) => {
+  const mapById = new Map<number, CitywayTripPoint>();
+  for (const point of points) {
+    if (!Number.isFinite(point.Id) || !Number.isFinite(point.LogicalStopId)) {
+      continue;
+    }
+    if (!mapById.has(point.Id)) {
+      mapById.set(point.Id, point);
+    }
+  }
+  return Array.from(mapById.values());
+};
+
+const fetchCitywayTripPointsNear = async (lat: number, lon: number) => {
+  const delta = 0.0015;
+  const url = new URL(
+    "https://api.mrn.cityway.fr/api/transport/v3/trippoint/GetTripPointsByBoundingBox",
+  );
+  url.searchParams.set("MinimumLatitude", String(lat - delta));
+  url.searchParams.set("MinimumLongitude", String(lon - delta));
+  url.searchParams.set("MaximumLatitude", String(lat + delta));
+  url.searchParams.set("MaximumLongitude", String(lon + delta));
+  url.searchParams.set("PointTypes", "5");
+  url.searchParams.set("UserLat", String(lat));
+  url.searchParams.set("UserLon", String(lon));
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      accept: "application/json",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Cityway trip points lookup failed: ${response.status}`);
   }
 
-  const calendar = staticData.serviceCalendarsById.get(serviceId);
-  if (!calendar) {
-    return false;
+  const payload = (await response.json()) as CitywayTripPointResponse;
+  const points = Array.isArray(payload?.Data) ? payload.Data : [];
+  return dedupeCitywayPoints(points);
+};
+
+const mapStopToCitywayPhysicalId = (
+  stop: StopInfo,
+  points: CitywayTripPoint[],
+): number | null => {
+  if (!points.length) {
+    return null;
   }
-  if (dateKey < calendar.startDate || dateKey > calendar.endDate) {
-    return false;
+
+  if (stop.lat === null || stop.lon === null) {
+    const byName = points.find(
+      (point) =>
+        normalizeForSearch(point.Name ?? "") === normalizeForSearch(stop.name),
+    );
+    return byName?.Id ?? points[0]?.Id ?? null;
   }
-  return calendar.activeWeekdays[getParisWeekdayIndex(dateKey)] ?? false;
+
+  let bestPoint: CitywayTripPoint | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (const point of points) {
+    const dLat = point.Latitude - stop.lat;
+    const dLon = point.Longitude - stop.lon;
+    const score = dLat * dLat + dLon * dLon;
+    if (score < bestScore) {
+      bestScore = score;
+      bestPoint = point;
+    }
+  }
+
+  return bestPoint?.Id ?? null;
 };
 
 export const getRouenDeparturesForStop = async (args: {
@@ -586,196 +705,171 @@ export const getRouenDeparturesForStop = async (args: {
   const lineFilter = new Set(args.lines.map(normalizeLineName));
   const hasLineFilter = lineFilter.size > 0;
 
-  const staticData = await loadRouenStaticData(args.staticGtfsUrl, args.staticCacheTtlMinutes);
-
-  const requestedStop = staticData.stopsById.get(args.stopId) ?? null;
-
-  const tripsByUrl = await Promise.all(
-    args.tripUpdatesUrls.map(async (sourceUrl) => {
-      const response = await fetch(sourceUrl);
-      if (!response.ok) {
-        throw new Error(`Failed GTFS-RT trip updates fetch: ${response.status}`);
-      }
-      const buffer = await response.arrayBuffer();
-      const message = decodeTripUpdates(buffer);
-      return { sourceUrl, message };
-    }),
+  const staticData = await loadRouenStaticData(
+    args.staticGtfsUrl,
+    args.staticCacheTtlMinutes,
   );
+  const requestedStop = staticData.stopsById.get(args.stopId) ?? null;
+  if (!requestedStop) {
+    return {
+      generatedAtUnix: nowUnix,
+      feedTimestampUnix: nowUnix,
+      stop: null,
+      departures: [],
+    };
+  }
 
-  const candidateServiceDateKeys = getCandidateServiceDateKeys(nowUnix, maxUnix);
+  const targetStops: StopInfo[] =
+    requestedStop.locationType === 1
+      ? (staticData.childrenByParentId.get(requestedStop.id) ?? [])
+          .map((childId) => staticData.stopsById.get(childId))
+          .filter((stop): stop is StopInfo => !!stop)
+      : [requestedStop];
+  if (!targetStops.length) {
+    targetStops.push(requestedStop);
+  }
 
-  const collectRealtimeDepartures = (targetStopIds: Set<string>) => {
-    const departures: { key: string; departure: Departure }[] = [];
-    const seenDepartures = new Set<string>();
+  const pivotLat = requestedStop.lat ?? targetStops[0]?.lat;
+  const pivotLon = requestedStop.lon ?? targetStops[0]?.lon;
+  if (pivotLat === null || pivotLon === null || pivotLat === undefined || pivotLon === undefined) {
+    throw new Error("Missing stop coordinates for Cityway schedule lookup");
+  }
 
-    for (const feed of tripsByUrl) {
-      for (const entity of feed.message.entity) {
-        const tripUpdate = entity.tripUpdate;
-        if (!tripUpdate) {
+  const citywayPoints = await fetchCitywayTripPointsNear(pivotLat, pivotLon);
+  if (!citywayPoints.length) {
+    return {
+      generatedAtUnix: nowUnix,
+      feedTimestampUnix: nowUnix,
+      stop: requestedStop,
+      departures: [],
+    };
+  }
+
+  const stopIdByPhysicalId = new Map<number, string>();
+  const allowedPhysicalStopIds = new Set<number>();
+
+  for (const stop of targetStops) {
+    const physicalId = mapStopToCitywayPhysicalId(stop, citywayPoints);
+    if (physicalId !== null) {
+      allowedPhysicalStopIds.add(physicalId);
+      stopIdByPhysicalId.set(physicalId, stop.id);
+    }
+  }
+
+  const requestedPhysicalId = mapStopToCitywayPhysicalId(
+    requestedStop,
+    citywayPoints,
+  );
+  const fallbackPoint = requestedPhysicalId
+    ? citywayPoints.find((point) => point.Id === requestedPhysicalId)
+    : citywayPoints[0];
+  const logicalStopId = fallbackPoint?.LogicalStopId;
+  if (!logicalStopId) {
+    throw new Error("Unable to resolve Cityway logical stop id");
+  }
+
+  const logicalUrl = new URL(
+    `https://api.mrn.cityway.fr/media/api/v1/en/Schedules/LogicalStop/${logicalStopId}/NextDeparture`,
+  );
+  logicalUrl.searchParams.set("realTime", "true");
+  logicalUrl.searchParams.set("lineId", "");
+  logicalUrl.searchParams.set("direction", "");
+  logicalUrl.searchParams.set("userLat", String(pivotLat));
+  logicalUrl.searchParams.set("userLon", String(pivotLon));
+  logicalUrl.searchParams.set("userId", "TSI_MRN");
+
+  const response = await fetch(logicalUrl.toString(), {
+    headers: {
+      accept: "application/json",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Cityway logical stop departures failed: ${response.status}`,
+    );
+  }
+
+  const groups = (await response.json()) as CitywayLogicalStopGroup[];
+  const departures: Departure[] = [];
+  const seen = new Set<string>();
+
+  for (const group of Array.isArray(groups) ? groups : []) {
+    for (const lineEntry of group.lines ?? []) {
+      const lineNumber = (lineEntry.line?.number ?? "").trim();
+      if (!lineNumber) {
+        continue;
+      }
+      if (hasLineFilter && !lineFilter.has(normalizeLineName(lineNumber))) {
+        continue;
+      }
+
+      const physicalStopId =
+        typeof lineEntry.stop?.id === "number" ? lineEntry.stop.id : null;
+      if (
+        allowedPhysicalStopIds.size > 0 &&
+        (physicalStopId === null || !allowedPhysicalStopIds.has(physicalStopId))
+      ) {
+        continue;
+      }
+
+      for (const time of lineEntry.times ?? []) {
+        const effectiveDateTime =
+          (time.realDateTime && time.realDateTime.trim()) ||
+          (time.dateTime && time.dateTime.trim()) ||
+          "";
+        const departureUnix = parseCitywayLocalDateTimeToUnix(effectiveDateTime);
+        if (
+          departureUnix === null ||
+          departureUnix < nowUnix ||
+          departureUnix > maxUnix
+        ) {
           continue;
         }
 
-        const tripRouteId = tripUpdate.trip?.routeId ?? "";
-        const tripId = tripUpdate.trip?.tripId ?? "";
-        const routeId = tripRouteId || staticData.tripsById.get(tripId)?.routeId || "";
-        const fallbackHeadsign = staticData.tripsById.get(tripId)?.headsign ?? "";
-
-        const stopTimeUpdates = tripUpdate.stopTimeUpdate ?? [];
-
-        for (const stopTimeUpdate of stopTimeUpdates) {
-          const stopId = stopTimeUpdate.stopId;
-          if (!stopId || !targetStopIds.has(stopId)) {
-            continue;
-          }
-
-          const departureUnix = getDepartureUnix(stopTimeUpdate as unknown as Record<string, unknown>);
-          if (!departureUnix || departureUnix < nowUnix || departureUnix > maxUnix) {
-            continue;
-          }
-
-          const dedupeKey = `${feed.sourceUrl}|${routeId}|${tripId}|${stopId}|${departureUnix}`;
-          if (seenDepartures.has(dedupeKey)) {
-            continue;
-          }
-          seenDepartures.add(dedupeKey);
-
-          const routeInfo = staticData.routesById.get(routeId);
-          const stopInfo = staticData.stopsById.get(stopId) ?? requestedStop;
-          const stopTimeRecord = stopTimeUpdate as unknown as Record<string, unknown>;
-          const stopHeadsign = typeof stopTimeRecord.stopHeadsign === "string" ? stopTimeRecord.stopHeadsign : "";
-          const line = routeInfo?.shortName || routeId || DEFAULT_STRING;
-
-          if (hasLineFilter && !lineFilter.has(normalizeLineName(line))) {
-            continue;
-          }
-
-          const key = `${tripId || routeId || line}|${stopId}|${departureUnix}`;
-          departures.push({
-            key,
-            departure: {
-              stopId,
-              stopName: stopInfo?.name ?? DEFAULT_STRING,
-              routeId,
-              line,
-              destination: stopHeadsign || fallbackHeadsign || routeInfo?.longName || DEFAULT_STRING,
-              departureUnix,
-              departureIso: new Date(departureUnix * 1000).toISOString(),
-              minutesUntilDeparture: Math.max(0, Math.round((departureUnix - nowUnix) / 60)),
-              sourceUrl: feed.sourceUrl,
-              isRealtime: true,
-            },
-          });
+        const destination =
+          time.destination?.name?.trim() ||
+          lineEntry.direction?.name?.trim() ||
+          lineEntry.line?.name?.trim() ||
+          DEFAULT_STRING;
+        const dedupeKey = `${lineNumber}|${physicalStopId ?? "?"}|${destination}|${departureUnix}`;
+        if (seen.has(dedupeKey)) {
+          continue;
         }
+        seen.add(dedupeKey);
+
+        const mappedStopId =
+          (physicalStopId !== null ? stopIdByPhysicalId.get(physicalStopId) : null) ??
+          requestedStop.id;
+        const mappedStopInfo = staticData.stopsById.get(mappedStopId) ?? requestedStop;
+
+        departures.push({
+          stopId: mappedStopId,
+          stopName: mappedStopInfo.name,
+          routeId: String(lineEntry.line?.id ?? lineNumber),
+          line: lineNumber,
+          destination,
+          departureUnix,
+          departureIso: new Date(departureUnix * 1000).toISOString(),
+          minutesUntilDeparture: Math.max(
+            0,
+            Math.round((departureUnix - nowUnix) / 60),
+          ),
+          sourceUrl: logicalUrl.toString(),
+          isRealtime: Boolean(
+            time.realDateTime && time.realDateTime.trim().length > 0,
+          ),
+        });
       }
     }
-
-    departures.sort((a, b) => a.departure.departureUnix - b.departure.departureUnix);
-    return departures;
-  };
-
-  const collectScheduledDepartures = (targetStopIds: Set<string>, existingKeys: Set<string>) => {
-    const departures: { key: string; departure: Departure }[] = [];
-    const seenDepartures = new Set<string>();
-
-    for (const stopId of targetStopIds) {
-      const stopTimes = staticData.stopTimesByStopId.get(stopId) ?? [];
-      const stopInfo = staticData.stopsById.get(stopId) ?? requestedStop;
-
-      for (const stopTime of stopTimes) {
-        const tripInfo = staticData.tripsById.get(stopTime.tripId);
-        if (!tripInfo || !tripInfo.serviceId) {
-          continue;
-        }
-
-        const routeInfo = staticData.routesById.get(tripInfo.routeId);
-        const line = routeInfo?.shortName || tripInfo.routeId || DEFAULT_STRING;
-        if (hasLineFilter && !lineFilter.has(normalizeLineName(line))) {
-          continue;
-        }
-
-        for (const serviceDateKey of candidateServiceDateKeys) {
-          if (!isServiceActiveOnDate(tripInfo.serviceId, serviceDateKey, staticData)) {
-            continue;
-          }
-
-          const departureUnix = toUnixFromParisDateAndSeconds(serviceDateKey, stopTime.departureSeconds);
-          if (departureUnix < nowUnix || departureUnix > maxUnix) {
-            continue;
-          }
-
-          const key = `${stopTime.tripId || tripInfo.routeId || line}|${stopId}|${departureUnix}`;
-          if (existingKeys.has(key) || seenDepartures.has(key)) {
-            continue;
-          }
-          seenDepartures.add(key);
-
-          departures.push({
-            key,
-            departure: {
-              stopId,
-              stopName: stopInfo?.name ?? DEFAULT_STRING,
-              routeId: tripInfo.routeId,
-              line,
-              destination: stopTime.stopHeadsign || tripInfo.headsign || routeInfo?.longName || DEFAULT_STRING,
-              departureUnix,
-              departureIso: new Date(departureUnix * 1000).toISOString(),
-              minutesUntilDeparture: Math.max(0, Math.round((departureUnix - nowUnix) / 60)),
-              sourceUrl: "gtfs-static-schedule",
-              isRealtime: false,
-            },
-          });
-        }
-      }
-    }
-
-    departures.sort((a, b) => a.departure.departureUnix - b.departure.departureUnix);
-    return departures;
-  };
-
-  const buildBlendedDepartures = (targetStopIds: Set<string>): Departure[] => {
-    const realtime = collectRealtimeDepartures(targetStopIds);
-    const realtimeKeys = new Set(realtime.map((item) => item.key));
-    const scheduled = collectScheduledDepartures(targetStopIds, realtimeKeys);
-
-    return [...realtime.map((item) => item.departure), ...scheduled.map((item) => item.departure)]
-      .sort((a, b) => a.departureUnix - b.departureUnix)
-      .slice(0, args.limit);
-  };
-
-  const primaryTargetStopIds = new Set<string>([args.stopId]);
-  if (requestedStop?.locationType === 1) {
-    for (const childStopId of staticData.childrenByParentId.get(requestedStop.id) ?? []) {
-      primaryTargetStopIds.add(childStopId);
-    }
   }
 
-  let departures = buildBlendedDepartures(primaryTargetStopIds);
-
-  const parentStationId = requestedStop?.parentStationId;
-  const shouldExpandToSiblings = requestedStop?.locationType !== 1 && !!parentStationId && !hasLineFilter && departures.length === 0;
-
-  if (shouldExpandToSiblings && parentStationId) {
-    const siblingTargetStopIds = new Set<string>([args.stopId]);
-    for (const siblingStopId of staticData.childrenByParentId.get(parentStationId) ?? []) {
-      siblingTargetStopIds.add(siblingStopId);
-    }
-    departures = buildBlendedDepartures(siblingTargetStopIds);
-  }
-
-  let latestFeedTimestamp = 0;
-
-  for (const feed of tripsByUrl) {
-    const headerTimestamp = fromLongLike(feed.message.header.timestamp);
-    if (headerTimestamp && headerTimestamp > latestFeedTimestamp) {
-      latestFeedTimestamp = headerTimestamp;
-    }
-  }
+  departures.sort((a, b) => a.departureUnix - b.departureUnix);
 
   return {
     generatedAtUnix: nowUnix,
-    feedTimestampUnix: latestFeedTimestamp,
+    feedTimestampUnix: nowUnix,
     stop: requestedStop,
-    departures,
+    departures: departures.slice(0, args.limit),
   };
 };
 
