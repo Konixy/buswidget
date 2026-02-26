@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Corps du bus -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,35 L88,35 Q92,35 92,39 L92,72 Q92,76 88,76 L20,76 Q16,76 16,72 L16,39 Q16,35 20,35 Z" />
+    <!-- Fenêtres -->
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M24,44 L40,44 L40,60 L24,60 Z" />
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M46,44 L62,44 L62,60 L46,60 Z" />
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M68,44 L84,44 L84,60 L68,60 Z" />
+    <!-- Roues -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,76 A8,8 0 1,0 30,76.1 Z" />
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M30,72 A4,4 0 1,0 30,72.1 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M78,76 A8,8 0 1,0 78,76.1 Z" />
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M78,72 A4,4 0 1,0 78,72.1 Z" />
+    <!-- Porte -->
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M46,63 L62,63 L62,76 L46,76 Z" />
+</vector>
