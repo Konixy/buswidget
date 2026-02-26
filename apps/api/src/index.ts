@@ -4,7 +4,11 @@ import { networkInterfaces } from "node:os";
 import * as v from "valibot";
 
 import { env } from "./env";
-import { getRouenDeparturesForStop, searchRouenStops } from "./lib/rouen-astuce";
+import {
+  getRouenDeparturesForLogicalStop,
+  getRouenDeparturesForStop,
+  searchRouenStops,
+} from "./lib/rouen";
 
 const parseIntQuery = (defaultValue: number, minValue: number, maxValue: number) =>
   v.pipe(
@@ -57,6 +61,15 @@ type AppDeps = {
     staticCacheTtlMinutes: number;
     tripUpdatesUrls: string[];
   }) => Promise<unknown>;
+  getDeparturesByLogicalStopId: (args: {
+    logicalStopId: number;
+    maxMinutesAhead: number;
+    limit: number;
+    lines: string[];
+    staticGtfsUrl: string;
+    staticCacheTtlMinutes: number;
+    tripUpdatesUrls: string[];
+  }) => Promise<unknown>;
 };
 
 const formatIssues = (issues: v.BaseIssue<unknown>[]) =>
@@ -64,6 +77,13 @@ const formatIssues = (issues: v.BaseIssue<unknown>[]) =>
     message: issue.message,
     path: v.getDotPath(issue),
   }));
+
+const withTimingHeaders = (response: Response, metricName: string, startedAtMs: number) => {
+  const durationMs = Math.max(0, performance.now() - startedAtMs);
+  response.headers.append("Server-Timing", `${metricName};dur=${durationMs.toFixed(1)}`);
+  response.headers.set("X-Response-Time-Ms", durationMs.toFixed(1));
+  return response;
+};
 
 export const createApp = (deps: AppDeps) => {
   const app = new Hono();
@@ -80,15 +100,16 @@ export const createApp = (deps: AppDeps) => {
   });
 
   app.get("/v1/rouen/stops/search", async (c) => {
+    const startedAtMs = performance.now();
     const parsed = v.safeParse(querySearchSchema, c.req.query());
     if (!parsed.success) {
-      return c.json(
+      return withTimingHeaders(c.json(
         {
           error: "Invalid query parameters",
           details: formatIssues(parsed.issues),
         },
         400,
-      );
+      ), "search", startedAtMs);
     }
 
     const response = await deps.searchStops({
@@ -98,24 +119,25 @@ export const createApp = (deps: AppDeps) => {
       staticCacheTtlMinutes: deps.config.rouenStaticCacheTtlMinutes,
     });
 
-    return c.json(response);
+    return withTimingHeaders(c.json(response), "search", startedAtMs);
   });
 
   app.get("/v1/rouen/stops/:stopId/departures", async (c) => {
+    const startedAtMs = performance.now();
     const stopId = c.req.param("stopId").trim();
     if (!stopId) {
-      return c.json({ error: "stopId is required" }, 400);
+      return withTimingHeaders(c.json({ error: "stopId is required" }, 400), "departures", startedAtMs);
     }
 
     const parsed = v.safeParse(departuresQuerySchema, c.req.query());
     if (!parsed.success) {
-      return c.json(
+      return withTimingHeaders(c.json(
         {
           error: "Invalid query parameters",
           details: formatIssues(parsed.issues),
         },
         400,
-      );
+      ), "departures", startedAtMs);
     }
 
     try {
@@ -128,15 +150,69 @@ export const createApp = (deps: AppDeps) => {
         staticCacheTtlMinutes: deps.config.rouenStaticCacheTtlMinutes,
         tripUpdatesUrls: deps.config.rouenTripUpdatesUrls,
       });
-      return c.json(data);
+      return withTimingHeaders(c.json(data), "departures", startedAtMs);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      return c.json(
+      return withTimingHeaders(c.json(
         {
           error: "Failed to load departures",
           message,
         },
         502,
+      ), "departures", startedAtMs);
+    }
+  });
+
+  app.get("/v1/rouen/logical-stops/:logicalStopId/departures", async (c) => {
+    const startedAtMs = performance.now();
+    const logicalStopIdValue = c.req.param("logicalStopId").trim();
+    const logicalStopId = Number(logicalStopIdValue);
+    if (!logicalStopIdValue || !Number.isInteger(logicalStopId) || logicalStopId <= 0) {
+      return withTimingHeaders(
+        c.json({ error: "logicalStopId must be a positive integer" }, 400),
+        "departures_logical",
+        startedAtMs,
+      );
+    }
+
+    const parsed = v.safeParse(departuresQuerySchema, c.req.query());
+    if (!parsed.success) {
+      return withTimingHeaders(
+        c.json(
+          {
+            error: "Invalid query parameters",
+            details: formatIssues(parsed.issues),
+          },
+          400,
+        ),
+        "departures_logical",
+        startedAtMs,
+      );
+    }
+
+    try {
+      const data = await deps.getDeparturesByLogicalStopId({
+        logicalStopId,
+        limit: parsed.output.limit,
+        maxMinutesAhead: parsed.output.maxMinutes,
+        lines: parsed.output.lines,
+        staticGtfsUrl: deps.config.rouenStaticGtfsUrl,
+        staticCacheTtlMinutes: deps.config.rouenStaticCacheTtlMinutes,
+        tripUpdatesUrls: deps.config.rouenTripUpdatesUrls,
+      });
+      return withTimingHeaders(c.json(data), "departures_logical", startedAtMs);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return withTimingHeaders(
+        c.json(
+          {
+            error: "Failed to load departures",
+            message,
+          },
+          502,
+        ),
+        "departures_logical",
+        startedAtMs,
       );
     }
   });
@@ -148,6 +224,7 @@ const app = createApp({
   config: env,
   searchStops: searchRouenStops,
   getDepartures: getRouenDeparturesForStop,
+  getDeparturesByLogicalStopId: getRouenDeparturesForLogicalStop,
 });
 
 const getLanUrls = (host: string, port: number): string[] => {

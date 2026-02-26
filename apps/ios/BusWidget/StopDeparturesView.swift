@@ -49,7 +49,7 @@ struct StopDeparturesView: View {
                     Text(departure.destination)
                         .font(.subheadline)
 
-                    if departure.stopId != stop.id {
+                    if departure.stopId != stop.id, departure.stopId.contains(":") {
                         Text(departure.stopId)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -122,26 +122,60 @@ struct StopDeparturesView: View {
         defer { isLoading = false }
 
         do {
-            var response = try await model.api.departures(stopId: stop.id, limit: 10, maxMinutes: 240)
+            let favoriteLogicalStopId = model.favorite(for: stop)?.logicalStopId
+            var response: StopDeparturesResponse? = nil
 
-            if filteredDepartures(from: response).isEmpty,
-               let parentStationId = stop.parentStationId,
-               parentStationId != stop.id {
-                response = try await model.api.departures(
-                    stopId: parentStationId,
-                    limit: 10,
-                    maxMinutes: 240
-                )
-            }
-
-            if filteredDepartures(from: response).isEmpty {
-                let fallback = try await fallbackDeparturesForSiblings()
-                if let fallback {
-                    response = fallback
+            if let favoriteLogicalStopId {
+                do {
+                    let logicalResponse = try await model.api.departures(
+                        logicalStopId: favoriteLogicalStopId,
+                        limit: 10,
+                        maxMinutes: 240
+                    )
+                    if !filteredDepartures(from: logicalResponse).isEmpty {
+                        response = logicalResponse
+                    }
+                } catch {
+                    // Fall back to stop-based lookup when logical-stop lookup fails.
+                    response = nil
                 }
             }
 
-            departures = filteredDepartures(from: response)
+            if response == nil {
+                var stopResponse = try await model.api.departures(stopId: stop.id, limit: 10, maxMinutes: 240)
+
+                if filteredDepartures(from: stopResponse).isEmpty,
+                   let parentStationId = stop.parentStationId,
+                   parentStationId != stop.id {
+                    stopResponse = try await model.api.departures(
+                        stopId: parentStationId,
+                        limit: 10,
+                        maxMinutes: 240
+                    )
+                }
+
+                if filteredDepartures(from: stopResponse).isEmpty {
+                    let fallback = try await fallbackDeparturesForSiblings()
+                    if let fallback {
+                        stopResponse = fallback
+                    }
+                }
+
+                response = stopResponse
+            }
+
+            guard let finalResponse = response else {
+                throw APIClientError.invalidResponse
+            }
+
+            if model.isFavorite(stop) {
+                model.updateFavoriteLogicalStopId(
+                    stopId: stop.id,
+                    logicalStopId: finalResponse.logicalStopId
+                )
+            }
+
+            departures = filteredDepartures(from: finalResponse)
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription

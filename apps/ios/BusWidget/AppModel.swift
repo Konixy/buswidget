@@ -49,6 +49,12 @@ final class AppModel: ObservableObject {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
+    func updateFavoriteLogicalStopId(stopId: String, logicalStopId: Int?) {
+        favoritesStore.updateLogicalStopId(stopId: stopId, logicalStopId: logicalStopId)
+        favorites = favoritesStore.all()
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
     func handleDeepLink(_ url: URL) {
         guard url.scheme == "buswidget" else {
             return

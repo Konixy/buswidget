@@ -67,12 +67,14 @@ public struct StopInfo: Codable, Identifiable, Hashable {
 public struct FavoriteStop: Codable, Identifiable, Hashable {
     public let stop: StopInfo
     public let selectedLines: [String]
+    public let logicalStopId: Int?
 
     public var id: String { stop.id }
 
-    public init(stop: StopInfo, selectedLines: [String] = []) {
+    public init(stop: StopInfo, selectedLines: [String] = [], logicalStopId: Int? = nil) {
         self.stop = stop
         self.selectedLines = selectedLines
+        self.logicalStopId = logicalStopId
     }
 }
 
@@ -154,5 +156,6 @@ public struct StopDeparturesResponse: Codable {
     public let generatedAtUnix: Int
     public let feedTimestampUnix: Int
     public let stop: StopInfo?
+    public let logicalStopId: Int?
     public let departures: [Departure]
 }

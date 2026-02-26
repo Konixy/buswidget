@@ -36,5 +36,6 @@ export const stopDeparturesResponseSchema = v.object({
   generatedAtUnix: v.number(),
   feedTimestampUnix: v.number(),
   stop: v.nullable(stopSchema),
+  logicalStopId: v.nullable(v.number()),
   departures: v.array(departureSchema),
 });
