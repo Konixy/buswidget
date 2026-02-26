@@ -10,6 +10,7 @@ public struct StopInfo: Codable, Identifiable, Hashable {
     public let parentStationId: String?
     public let transportModes: [String]
     public let lineHints: [String]
+    public let lineHintColors: [String: String]
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -21,6 +22,7 @@ public struct StopInfo: Codable, Identifiable, Hashable {
         case parentStationId
         case transportModes
         case lineHints
+        case lineHintColors
     }
 
     public init(
@@ -32,7 +34,8 @@ public struct StopInfo: Codable, Identifiable, Hashable {
         locationType: Int? = nil,
         parentStationId: String? = nil,
         transportModes: [String] = [],
-        lineHints: [String] = []
+        lineHints: [String] = [],
+        lineHintColors: [String: String] = [:]
     ) {
         self.id = id
         self.name = name
@@ -43,6 +46,7 @@ public struct StopInfo: Codable, Identifiable, Hashable {
         self.parentStationId = parentStationId
         self.transportModes = transportModes
         self.lineHints = lineHints
+        self.lineHintColors = lineHintColors
     }
 
     public init(from decoder: Decoder) throws {
@@ -56,6 +60,7 @@ public struct StopInfo: Codable, Identifiable, Hashable {
         parentStationId = try container.decodeIfPresent(String.self, forKey: .parentStationId)
         transportModes = try container.decodeIfPresent([String].self, forKey: .transportModes) ?? []
         lineHints = try container.decodeIfPresent([String].self, forKey: .lineHints) ?? []
+        lineHintColors = try container.decodeIfPresent([String: String].self, forKey: .lineHintColors) ?? [:]
     }
 }
 
@@ -76,6 +81,7 @@ public struct Departure: Codable, Hashable {
     public let stopName: String
     public let routeId: String
     public let line: String
+    public let lineColor: String?
     public let destination: String
     public let departureUnix: Int
     public let departureIso: String
@@ -88,6 +94,7 @@ public struct Departure: Codable, Hashable {
         case stopName
         case routeId
         case line
+        case lineColor
         case destination
         case departureUnix
         case departureIso
@@ -101,6 +108,7 @@ public struct Departure: Codable, Hashable {
         stopName: String,
         routeId: String,
         line: String,
+        lineColor: String? = nil,
         destination: String,
         departureUnix: Int,
         departureIso: String,
@@ -112,6 +120,7 @@ public struct Departure: Codable, Hashable {
         self.stopName = stopName
         self.routeId = routeId
         self.line = line
+        self.lineColor = lineColor
         self.destination = destination
         self.departureUnix = departureUnix
         self.departureIso = departureIso
@@ -126,6 +135,7 @@ public struct Departure: Codable, Hashable {
         stopName = try container.decode(String.self, forKey: .stopName)
         routeId = try container.decode(String.self, forKey: .routeId)
         line = try container.decode(String.self, forKey: .line)
+        lineColor = try container.decodeIfPresent(String.self, forKey: .lineColor)
         destination = try container.decode(String.self, forKey: .destination)
         departureUnix = try container.decode(Int.self, forKey: .departureUnix)
         departureIso = try container.decode(String.self, forKey: .departureIso)

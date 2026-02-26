@@ -187,9 +187,14 @@ struct BusWidgetWidgetEntryView: View {
                 let shown = Array(entry.departures.prefix(3))
                 ForEach(shown, id: \.departureIso) { departure in
                     HStack {
-                        Text(departure.line)
-                            .font(.subheadline)
-                            .bold()
+                        LineBadge(
+                            line: departure.line,
+                            colorHex: departure.lineColor,
+                            font: .caption,
+                            horizontalPadding: 7,
+                            verticalPadding: 2,
+                            minWidth: 24
+                        )
                         Text(departure.destination)
                             .font(.caption)
                             .lineLimit(1)

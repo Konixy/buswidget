@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		197EFF77E680CC76AA1C0481 /* LineBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DFC1A54DC636FC2C73F7233 /* LineBadge.swift */; };
 		2CB274DAB6FD7D31F95101B6 /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF800F922251F9762EC0A93 /* FavoritesView.swift */; };
 		2D58338AF7466BFC3687D6FA /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E80CCAD888C434C95D54BB8 /* APIClient.swift */; };
 		30C611C50368013CCD1210D7 /* BusWidgetWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A94252FEA72C11A069C7513 /* BusWidgetWidget.swift */; };
@@ -20,6 +21,7 @@
 		810D538DACF30B01F73E62E3 /* FavoritesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED26FD21CBEC7969A0A4C69 /* FavoritesStore.swift */; };
 		81B17565560B3E6B6BBE6E0A /* StopDeparturesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B83FF372EDC9232FFF6E811 /* StopDeparturesView.swift */; };
 		8BD94D8DD6324642E81B14E1 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E80CCAD888C434C95D54BB8 /* APIClient.swift */; };
+		959EDA0602416D3B00623A75 /* LineBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DFC1A54DC636FC2C73F7233 /* LineBadge.swift */; };
 		A47236364EF8F0849F0B1165 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F356F94BBBE83DF2A5F79B4 /* AppGroup.swift */; };
 		B128DE9F6F5AB968D7784A64 /* BusWidgetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75A4FA2801EAB517C9599B5 /* BusWidgetApp.swift */; };
 		C362B0DA89D41CA6E7EA9C57 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ADB947D710124F7C927F470 /* Configuration.swift */; };
@@ -57,6 +59,7 @@
 /* Begin PBXFileReference section */
 		0E80CCAD888C434C95D54BB8 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		1A94252FEA72C11A069C7513 /* BusWidgetWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusWidgetWidget.swift; sourceTree = "<group>"; };
+		2DFC1A54DC636FC2C73F7233 /* LineBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineBadge.swift; sourceTree = "<group>"; };
 		49015F4FA0AB0A5EE2459992 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		6ADB947D710124F7C927F470 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
 		6B83FF372EDC9232FFF6E811 /* StopDeparturesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopDeparturesView.swift; sourceTree = "<group>"; };
@@ -91,6 +94,7 @@
 				8F356F94BBBE83DF2A5F79B4 /* AppGroup.swift */,
 				6ADB947D710124F7C927F470 /* Configuration.swift */,
 				CED26FD21CBEC7969A0A4C69 /* FavoritesStore.swift */,
+				2DFC1A54DC636FC2C73F7233 /* LineBadge.swift */,
 				BF724CA67A12B1EF694C9026 /* Models.swift */,
 			);
 			path = Shared;
@@ -233,6 +237,7 @@
 				C362B0DA89D41CA6E7EA9C57 /* Configuration.swift in Sources */,
 				810D538DACF30B01F73E62E3 /* FavoritesStore.swift in Sources */,
 				2CB274DAB6FD7D31F95101B6 /* FavoritesView.swift in Sources */,
+				197EFF77E680CC76AA1C0481 /* LineBadge.swift in Sources */,
 				3C8A43309956C1F5DFFDEA66 /* Models.swift in Sources */,
 				CA8A8E06B5619EDBA39ADDB1 /* RootView.swift in Sources */,
 				4E4A5A9079507737D6CA0B5E /* SearchStopsView.swift in Sources */,
@@ -250,6 +255,7 @@
 				5D6C544AB9006A88B9987E2A /* BusWidgetWidgetBundle.swift in Sources */,
 				37297846080C47B75F9596CA /* Configuration.swift in Sources */,
 				CDE350158F9020CE278CB490 /* FavoritesStore.swift in Sources */,
+				959EDA0602416D3B00623A75 /* LineBadge.swift in Sources */,
 				4A8A902C9FED42DE0F2FCA61 /* Models.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -134,9 +134,23 @@ private struct StopSearchResultRow: View {
                     .foregroundStyle(.secondary)
 
                 if !stop.lineHints.isEmpty {
-                    Text("Lines \(Array(stop.lineHints.prefix(4)).joined(separator: ", "))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        ForEach(Array(stop.lineHints.prefix(4)), id: \.self) { line in
+                            LineBadge(
+                                line: line,
+                                colorHex: stop.lineHintColors[line],
+                                font: .caption2,
+                                horizontalPadding: 7,
+                                verticalPadding: 2
+                            )
+                        }
+
+                        if stop.lineHints.count > 4 {
+                            Text("+\(stop.lineHints.count - 4)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
 
@@ -229,7 +243,7 @@ struct FavoriteStopOptionsSheet: View {
                     Button {
                         toggleSelection(for: line)
                     } label: {
-                        lineRow(title: line, isSelected: selectedLines.contains(line))
+                        lineRow(line: line, isSelected: selectedLines.contains(line))
                     }
                 }
             } header: {
@@ -259,6 +273,23 @@ struct FavoriteStopOptionsSheet: View {
     private func lineRow(title: String, isSelected: Bool) -> some View {
         HStack {
             Text(title)
+            Spacer()
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+    }
+
+    private func lineRow(line: String, isSelected: Bool) -> some View {
+        HStack {
+            LineBadge(
+                line: line,
+                colorHex: stop.lineHintColors[line],
+                font: .callout,
+                horizontalPadding: 10,
+                verticalPadding: 4
+            )
             Spacer()
             if isSelected {
                 Image(systemName: "checkmark")

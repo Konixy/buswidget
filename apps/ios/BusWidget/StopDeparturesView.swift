@@ -26,8 +26,14 @@ struct StopDeparturesView: View {
             ForEach(departures, id: \.departureIso) { departure in
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(departure.line)
-                            .font(.headline)
+                        LineBadge(
+                            line: departure.line,
+                            colorHex: departure.lineColor,
+                            font: .headline,
+                            horizontalPadding: 10,
+                            verticalPadding: 4,
+                            minWidth: 34
+                        )
                         Spacer()
                         HStack(spacing: 4) {
                             if departure.isRealtime {
