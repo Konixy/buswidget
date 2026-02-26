@@ -10,6 +10,7 @@ export const stopSchema = v.object({
   parentStationId: v.nullable(v.string()),
   transportModes: v.array(v.string()),
   lineHints: v.array(v.string()),
+  lineHintColors: v.record(v.string(), v.string()),
 });
 
 export const departureSchema = v.object({
@@ -17,6 +18,7 @@ export const departureSchema = v.object({
   stopName: v.string(),
   routeId: v.string(),
   line: v.string(),
+  lineColor: v.nullable(v.string()),
   destination: v.string(),
   departureUnix: v.number(),
   departureIso: v.string(),

@@ -11,6 +11,7 @@ export type StopInfo = {
   parentStationId: string | null;
   transportModes: string[];
   lineHints: string[];
+  lineHintColors: Record<string, string>;
 };
 
 type RouteInfo = {
@@ -18,6 +19,7 @@ type RouteInfo = {
   shortName: string;
   longName: string;
   type: number | null;
+  color: string | null;
 };
 
 type TripInfo = {
@@ -56,6 +58,7 @@ export type Departure = {
   stopName: string;
   routeId: string;
   line: string;
+  lineColor: string | null;
   destination: string;
   departureUnix: number;
   departureIso: string;
@@ -87,6 +90,17 @@ const PROVIDER_PRIORITY: Record<string, number> = {
 
 const getField = (row: Record<string, string>, key: string): string => {
   return row[key] ?? "";
+};
+
+const normalizeHexColor = (value: string): string | null => {
+  const normalized = value.trim().replace(/^#/, "");
+  if (!normalized) {
+    return null;
+  }
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    return null;
+  }
+  return `#${normalized.toUpperCase()}`;
 };
 
 const parseCsvRecords = (text: string): Record<string, string>[] => {
@@ -124,6 +138,7 @@ const toRouteInfo = (row: Record<string, string>): RouteInfo => ({
   shortName: getField(row, "route_short_name") || getField(row, "route_id"),
   longName: getField(row, "route_long_name") || getField(row, "route_short_name") || getField(row, "route_id"),
   type: getField(row, "route_type") ? Number(getField(row, "route_type")) : null,
+  color: normalizeHexColor(getField(row, "route_color")),
 });
 
 const toStopInfo = (row: Record<string, string>): StopInfo => ({
@@ -136,6 +151,7 @@ const toStopInfo = (row: Record<string, string>): StopInfo => ({
   parentStationId: getField(row, "parent_station") || null,
   transportModes: [],
   lineHints: [],
+  lineHintColors: {},
 });
 
 const toTripInfo = (row: Record<string, string>): TripInfo => ({
@@ -376,6 +392,66 @@ const toSortedLineHints = (routeIds: Set<string>, routesById: Map<string, RouteI
   return Array.from(lines).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base", numeric: true }));
 };
 
+const toLineHintColors = (routeIds: Set<string>, routesById: Map<string, RouteInfo>) => {
+  const routes = Array.from(routeIds)
+    .map((routeId) => routesById.get(routeId))
+    .filter((route): route is RouteInfo => Boolean(route))
+    .sort((a, b) => {
+      const lineCmp = a.shortName.localeCompare(b.shortName, "fr", {
+        sensitivity: "base",
+        numeric: true,
+      });
+      if (lineCmp !== 0) {
+        return lineCmp;
+      }
+      return a.id.localeCompare(b.id, "fr", {
+        sensitivity: "base",
+        numeric: true,
+      });
+    });
+
+  const colorsByLine = new Map<string, string>();
+  for (const route of routes) {
+    const line = route.shortName.trim();
+    if (!line || !route.color || colorsByLine.has(line)) {
+      continue;
+    }
+    colorsByLine.set(line, route.color);
+  }
+
+  return Object.fromEntries(colorsByLine.entries()) as Record<string, string>;
+};
+
+const buildRouteColorByNormalizedLine = (routesById: Map<string, RouteInfo>) => {
+  const routes = Array.from(routesById.values()).sort((a, b) => {
+    const lineCmp = a.shortName.localeCompare(b.shortName, "fr", {
+      sensitivity: "base",
+      numeric: true,
+    });
+    if (lineCmp !== 0) {
+      return lineCmp;
+    }
+    return a.id.localeCompare(b.id, "fr", {
+      sensitivity: "base",
+      numeric: true,
+    });
+  });
+
+  const colorsByLine = new Map<string, string>();
+  for (const route of routes) {
+    const line = route.shortName.trim();
+    if (!line || !route.color) {
+      continue;
+    }
+    const normalizedLine = normalizeLineName(line);
+    if (!colorsByLine.has(normalizedLine)) {
+      colorsByLine.set(normalizedLine, route.color);
+    }
+  }
+
+  return colorsByLine;
+};
+
 const parseGtfsZip = async (zipBuffer: ArrayBuffer): Promise<StaticGtfsData> => {
   const zip = await JSZip.loadAsync(zipBuffer);
   const [stopsText, routesText, tripsText, stopTimesText, calendarText, calendarDatesText] = await Promise.all([
@@ -492,6 +568,7 @@ const parseGtfsZip = async (zipBuffer: ArrayBuffer): Promise<StaticGtfsData> => 
     const routeIds = getRouteIdsForStop(stop, routeIdsByStopId, childrenByParentId);
     stop.transportModes = toSortedTransportModes(routeIds, routesById);
     stop.lineHints = toSortedLineHints(routeIds, routesById);
+    stop.lineHintColors = toLineHintColors(routeIds, routesById);
   }
 
   return {
@@ -557,6 +634,7 @@ type CitywayLine = {
   id?: number;
   number?: string;
   name?: string;
+  color?: string;
 };
 
 type CitywayDirection = {
@@ -709,6 +787,9 @@ export const getRouenDeparturesForStop = async (args: {
     args.staticGtfsUrl,
     args.staticCacheTtlMinutes,
   );
+  const routeColorByNormalizedLine = buildRouteColorByNormalizedLine(
+    staticData.routesById,
+  );
   const requestedStop = staticData.stopsById.get(args.stopId) ?? null;
   if (!requestedStop) {
     return {
@@ -841,12 +922,16 @@ export const getRouenDeparturesForStop = async (args: {
           (physicalStopId !== null ? stopIdByPhysicalId.get(physicalStopId) : null) ??
           requestedStop.id;
         const mappedStopInfo = staticData.stopsById.get(mappedStopId) ?? requestedStop;
+        const normalizedLine = normalizeLineName(lineNumber);
+        const citywayLineColor = normalizeHexColor(lineEntry.line?.color ?? "");
+        const fallbackLineColor = routeColorByNormalizedLine.get(normalizedLine) ?? null;
 
         departures.push({
           stopId: mappedStopId,
           stopName: mappedStopInfo.name,
           routeId: String(lineEntry.line?.id ?? lineNumber),
           line: lineNumber,
+          lineColor: citywayLineColor ?? fallbackLineColor,
           destination,
           departureUnix,
           departureIso: new Date(departureUnix * 1000).toISOString(),
