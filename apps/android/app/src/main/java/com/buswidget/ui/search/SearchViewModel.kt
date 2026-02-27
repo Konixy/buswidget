@@ -104,4 +104,17 @@ class SearchViewModel @Inject constructor(
             }
         }
     }
+
+    fun searchNearby(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            _query.value = "" // Clear the search bar
+            _uiState.value = SearchUiState.Loading
+            try {
+                val response = api.getNearbyStops(lat = lat, lon = lon, limit = 15)
+                _uiState.value = SearchUiState.Success(response.results.map { it.toStopInfo() })
+            } catch (e: Exception) {
+                _uiState.value = SearchUiState.Error(e.message ?: "Erreur de géolocalisation")
+            }
+        }
+    }
 }

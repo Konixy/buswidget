@@ -19,9 +19,20 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.buswidget.data.local.StopInfo
 import com.buswidget.ui.favorites.FavoriteOptionsSheet
+import androidx.compose.material.icons.filled.MyLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +45,48 @@ fun SearchScreen(
     val favorites by viewModel.favoritesFlow.collectAsState()
     val favoriteSetupStop by viewModel.favoriteSetupStop.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    val context = LocalContext.current
+    val performLocationSearch = {
+        @SuppressLint("MissingPermission")
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val provider = locationManager.getBestProvider(android.location.Criteria(), true)
+        var loc: Location? = null
+        if (provider != null) {
+            loc = locationManager.getLastKnownLocation(provider)
+        }
+        if (loc == null) {
+            loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+        }
+        if (loc != null) {
+            viewModel.searchNearby(loc.latitude, loc.longitude)
+        } else {
+            viewModel.searchNearby(49.4431, 1.0993) // Fallback centre-ville de Rouen
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissions ->
+            val hasLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                              permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            if (hasLocation) {
+                performLocationSearch()
+            }
+        }
+    )
+
+    val onLocationClick = {
+        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (hasFine || hasCoarse) {
+            performLocationSearch()
+        } else {
+            permissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+            )
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -67,7 +120,11 @@ fun SearchScreen(
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             // Search bar
-            SearchBar(query = query, onQueryChange = viewModel::onQueryChange)
+            SearchBar(
+                query = query,
+                onQueryChange = viewModel::onQueryChange,
+                onLocationClick = onLocationClick
+            )
 
             when (val state = uiState) {
                 is SearchUiState.Idle -> EmptyState("Tapez au moins 2 caractères", Icons.Outlined.Tram)
@@ -128,7 +185,7 @@ fun SearchScreen(
 }
 
 @Composable
-private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
+private fun SearchBar(query: String, onQueryChange: (String) -> Unit, onLocationClick: () -> Unit) {
     TextField(
         value = query,
         onValueChange = onQueryChange,
@@ -137,6 +194,11 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         placeholder = { Text("Nom d'arrêt, ligne ou ID...") },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        trailingIcon = {
+            IconButton(onClick = onLocationClick) {
+                Icon(Icons.Default.MyLocation, contentDescription = "Autour de moi", tint = MaterialTheme.colorScheme.primary)
+            }
+        },
         singleLine = true,
         shape = MaterialTheme.shapes.extraLarge,
         colors = TextFieldDefaults.colors(

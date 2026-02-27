@@ -7,4 +7,4 @@ export type {
 
 export { getRouenDeparturesForStop } from "./departures";
 export { loadRouenStaticData } from "./static-data";
-export { searchRouenStops } from "./search";
+export { searchNearbyStops, searchRouenStops } from "./search";

@@ -6,6 +6,7 @@ import * as v from "valibot";
 import { env } from "./env";
 import {
   getRouenDeparturesForStop,
+  searchNearbyStops,
   searchRouenStops,
 } from "./lib/rouen";
 
@@ -15,6 +16,15 @@ const parseIntQuery = (defaultValue: number, minValue: number, maxValue: number)
     v.transform((value) => Number(value)),
     v.number(),
     v.integer(),
+    v.minValue(minValue),
+    v.maxValue(maxValue),
+  );
+
+const parseFloatQuery = (defaultValue: number, minValue: number, maxValue: number) =>
+  v.pipe(
+    v.optional(v.string(), String(defaultValue)),
+    v.transform((value) => Number(value)),
+    v.number(),
     v.minValue(minValue),
     v.maxValue(maxValue),
   );
@@ -42,6 +52,12 @@ const querySearchSchema = v.object({
   limit: parseIntQuery(20, 1, 50),
 });
 
+const nearbySearchSchema = v.object({
+  lat: parseFloatQuery(49.4432, -90, 90),
+  lon: parseFloatQuery(1.0999, -180, 180),
+  limit: parseIntQuery(20, 1, 50),
+});
+
 const departuresQuerySchema = v.object({
   limit: parseIntQuery(8, 1, 20),
   maxMinutes: parseIntQuery(90, 1, 240),
@@ -50,6 +66,7 @@ const departuresQuerySchema = v.object({
 
 type AppDeps = {
   config: typeof env;
+  searchNearbyStops: (args: { lat: number; lon: number; limit: number; staticGtfsUrl: string; staticCacheTtlMinutes: number }) => Promise<unknown>;
   searchStops: (args: { query: string; limit: number; staticGtfsUrl: string; staticCacheTtlMinutes: number }) => Promise<unknown>;
   getDepartures: (args: {
     stopId: string;
@@ -112,6 +129,30 @@ export const createApp = (deps: AppDeps) => {
     return withTimingHeaders(c.json(response), "search", startedAtMs);
   });
 
+  app.get("/v1/rouen/stops/nearby", async (c) => {
+    const startedAtMs = performance.now();
+    const parsed = v.safeParse(nearbySearchSchema, c.req.query());
+    if (!parsed.success) {
+      return withTimingHeaders(c.json(
+        {
+          error: "Invalid query parameters",
+          details: formatIssues(parsed.issues),
+        },
+        400,
+      ), "nearby", startedAtMs);
+    }
+
+    const response = await deps.searchNearbyStops({
+      lat: parsed.output.lat,
+      lon: parsed.output.lon,
+      limit: parsed.output.limit,
+      staticGtfsUrl: deps.config.rouenStaticGtfsUrl,
+      staticCacheTtlMinutes: deps.config.rouenStaticCacheTtlMinutes,
+    });
+
+    return withTimingHeaders(c.json(response), "nearby", startedAtMs);
+  });
+
   app.get("/v1/rouen/stops/:stopId/departures", async (c) => {
     const startedAtMs = performance.now();
     const stopId = c.req.param("stopId").trim();
@@ -158,6 +199,7 @@ export const createApp = (deps: AppDeps) => {
 
 const app = createApp({
   config: env,
+  searchNearbyStops: searchNearbyStops,
   searchStops: searchRouenStops,
   getDepartures: getRouenDeparturesForStop,
 });

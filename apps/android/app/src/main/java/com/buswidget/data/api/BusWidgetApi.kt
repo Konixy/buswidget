@@ -15,6 +15,13 @@ interface BusWidgetApi {
         @Query("limit") limit: Int = 30,
     ): StopSearchResponseDto
 
+    @GET("/v1/rouen/stops/nearby")
+    suspend fun getNearbyStops(
+        @Query("lat") lat: Double,
+        @Query("lon") lon: Double,
+        @Query("limit") limit: Int = 30,
+    ): StopSearchResponseDto
+
     @GET("/v1/rouen/stops/{stopId}/departures")
     suspend fun getDepartures(
         @Path("stopId") stopId: String,
