@@ -18,6 +18,7 @@ import com.squareup.moshi.Moshi
 
 class BusGlanceWidget : GlanceAppWidget() {
 
+    override val sizeMode = androidx.glance.appwidget.SizeMode.Exact
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
 
     companion object {
@@ -57,7 +58,7 @@ class BusGlanceWidget : GlanceAppWidget() {
                 val lines = favorite.selectedLines.joinToString(",").takeIf { it.isNotBlank() }
                 val response = api.getDepartures(
                     stopId = favorite.stop.id,
-                    limit = 6,
+                    limit = 8,
                     maxMinutes = 240,
                     lines = lines,
                 ).toStopDeparturesResponse()
@@ -66,7 +67,7 @@ class BusGlanceWidget : GlanceAppWidget() {
 
                 val widgetData = WidgetData(
                     stopName = response.stop?.name ?: favorite.stop.name,
-                    departures = response.departures.take(3),
+                    departures = response.departures, // Ne pas limiter ici, on gère à l'affichage
                     errorMessage = null,
                     updatedAtMs = System.currentTimeMillis(),
                 )
@@ -146,7 +147,7 @@ data class WidgetData(
     private fun toJson() = WidgetDataJson(
         stopName = stopName,
         departures = departures.map {
-            DepartureJson(it.line, it.destination, it.minutesUntilDeparture, it.isRealtime)
+            DepartureJson(it.line, it.lineColor, it.destination, it.minutesUntilDeparture, it.isRealtime)
         },
         errorMessage = errorMessage,
         updatedAtMs = updatedAtMs,
@@ -156,6 +157,7 @@ data class WidgetData(
 @JsonClass(generateAdapter = true)
 data class DepartureJson(
     val line: String,
+    val lineColor: String?,
     val destination: String,
     val minutesUntilDeparture: Int,
     val isRealtime: Boolean,
@@ -174,7 +176,7 @@ private fun WidgetDataJson.toWidgetData() = WidgetData(
     departures = departures.map {
         Departure(
             stopId = "", stopName = stopName, routeId = "",
-            line = it.line, destination = it.destination,
+            line = it.line, lineColor = it.lineColor, destination = it.destination,
             departureUnix = 0, departureIso = "",
             minutesUntilDeparture = it.minutesUntilDeparture,
             sourceUrl = "", isRealtime = it.isRealtime,

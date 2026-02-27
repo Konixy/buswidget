@@ -14,6 +14,7 @@ data class StopDto(
     @Json(name = "parentStationId") val parentStationId: String?,
     @Json(name = "transportModes") val transportModes: List<String>,
     @Json(name = "lineHints") val lineHints: List<String>,
+    @Json(name = "lineHintColors") val lineHintColors: Map<String, String>?,
 )
 
 @JsonClass(generateAdapter = true)
@@ -22,6 +23,7 @@ data class DepartureDto(
     @Json(name = "stopName") val stopName: String,
     @Json(name = "routeId") val routeId: String,
     @Json(name = "line") val line: String,
+    @Json(name = "lineColor") val lineColor: String?,
     @Json(name = "destination") val destination: String,
     @Json(name = "departureUnix") val departureUnix: Long,
     @Json(name = "departureIso") val departureIso: String,

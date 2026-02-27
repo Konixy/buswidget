@@ -11,11 +11,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.buswidget.data.local.FavoriteStop
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,14 +60,56 @@ fun FavoritesScreen(
                 }
             }
         } else {
-            LazyColumn(modifier = Modifier.padding(padding)) {
-                items(favorites, key = { it.stop.id }) { favorite ->
-                    FavoriteRow(
-                        favorite = favorite,
-                        onClick = { onNavigateToDepartures(favorite.stop.id, favorite.stop.name) },
-                        onDelete = { viewModel.remove(favorite.stop.id) },
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            var internalFavorites by remember(favorites) { mutableStateOf(favorites) }
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            val reorderableState = rememberReorderableLazyListState(listState) { from, to ->
+                internalFavorites = internalFavorites.toMutableList().apply {
+                    add(to.index, removeAt(from.index))
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier.padding(padding),
+                state = listState,
+            ) {
+                items(internalFavorites, key = { it.stop.id }) { favorite ->
+                    ReorderableItem(reorderableState, key = favorite.stop.id) { isDragging ->
+                        val elevation = if (isDragging) 8.dp else 0.dp
+                        Surface(
+                            shadowElevation = elevation,
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                FavoriteRow(
+                                    favorite = favorite,
+                                    onClick = { onNavigateToDepartures(favorite.stop.id, favorite.stop.name) },
+                                    onDelete = { viewModel.remove(favorite.stop.id) },
+                                    trailingIcon = {
+                                        Icon(
+                                            painter = painterResource(id = android.R.drawable.ic_menu_sort_by_size),
+                                            contentDescription = "Réorganiser",
+                                            tint = MaterialTheme.colorScheme.outline,
+                                            modifier = Modifier
+                                                .draggableHandle()
+                                                .padding(8.dp)
+                                                .size(24.dp)
+                                        )
+                                    }
+                                )
+                                if (!isDragging) {
+                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mettre à jour la base de données après un drag and drop
+            LaunchedEffect(internalFavorites) {
+                if (internalFavorites != favorites) {
+                    viewModel.onReorder(internalFavorites)
                 }
             }
         }
@@ -74,11 +121,13 @@ private fun FavoriteRow(
     favorite: FavoriteStop,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -113,19 +162,19 @@ private fun FavoriteRow(
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            Text(
-                favorite.stop.id,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-            )
         }
 
-        IconButton(onClick = { showDeleteConfirm = true }) {
-            Icon(
-                Icons.Outlined.Delete,
-                contentDescription = "Supprimer",
-                tint = MaterialTheme.colorScheme.error,
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { showDeleteConfirm = true }) {
+                Icon(
+                    Icons.Outlined.Delete,
+                    contentDescription = "Supprimer",
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (trailingIcon != null) {
+                trailingIcon()
+            }
         }
     }
 

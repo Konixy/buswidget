@@ -28,6 +28,7 @@ data class StopInfo(
     val parentStationId: String?,
     val transportModes: List<String>,
     val lineHints: List<String>,
+    val lineHintColors: Map<String, String>,
 )
 
 data class FavoriteStop(
@@ -40,6 +41,7 @@ data class Departure(
     val stopName: String,
     val routeId: String,
     val line: String,
+    val lineColor: String?,
     val destination: String,
     val departureUnix: Long,
     val departureIso: String,
@@ -68,6 +70,7 @@ data class FavoriteStopJson(
     val parentStationId: String?,
     val transportModes: List<String>,
     val lineHints: List<String>,
+    val lineHintColors: Map<String, String>?,  // nullable pour compat avec les données existantes
     val selectedLines: List<String>,
 )
 
@@ -112,6 +115,10 @@ class FavoritesStore @Inject constructor(
         save(current)
     }
 
+    suspend fun updateOrder(orderedFavorites: List<FavoriteStop>) {
+        save(orderedFavorites)
+    }
+
     suspend fun contains(stopId: String): Boolean = getAll().any { it.stop.id == stopId }
 
     suspend fun getById(stopId: String): FavoriteStop? = getAll().firstOrNull { it.stop.id == stopId }
@@ -136,6 +143,7 @@ class FavoritesStore @Inject constructor(
         parentStationId = stop.parentStationId,
         transportModes = stop.transportModes,
         lineHints = stop.lineHints,
+        lineHintColors = stop.lineHintColors,
         selectedLines = selectedLines,
     )
 
@@ -150,6 +158,7 @@ class FavoritesStore @Inject constructor(
             parentStationId = parentStationId,
             transportModes = transportModes,
             lineHints = lineHints,
+            lineHintColors = lineHintColors ?: emptyMap(),
         ),
         selectedLines = selectedLines,
     )

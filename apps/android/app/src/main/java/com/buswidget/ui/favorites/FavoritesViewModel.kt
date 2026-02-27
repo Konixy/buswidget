@@ -24,4 +24,10 @@ class FavoritesViewModel @Inject constructor(
             favoritesStore.remove(stopId)
         }
     }
+
+    fun onReorder(orderedFavorites: List<FavoriteStop>) {
+        viewModelScope.launch {
+            favoritesStore.updateOrder(orderedFavorites)
+        }
+    }
 }

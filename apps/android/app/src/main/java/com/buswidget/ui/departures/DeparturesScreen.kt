@@ -11,6 +11,11 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.animation.core.*
+import androidx.compose.ui.draw.alpha
+import com.buswidget.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -31,6 +36,15 @@ fun DeparturesScreen(
     LaunchedEffect(uiState) {
         if (uiState !is DeparturesUiState.Loading) {
             isRefreshing = false
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(30_000)
+            if (!isRefreshing) {
+                viewModel.refresh()
+            }
         }
     }
 
@@ -145,7 +159,7 @@ private fun MetadataCard(state: DeparturesUiState.Success) {
                 )
             }
             Text(
-                "RT = temps réel  •  SCH = horaire prévu",
+                "Icône 🛜 animée = horaires en direct",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -155,6 +169,60 @@ private fun MetadataCard(state: DeparturesUiState.Success) {
 
 @Composable
 private fun DepartureRow(departure: Departure) {
+    var currentMinutes by remember(departure.departureUnix) { mutableStateOf(departure.minutesUntilDeparture) }
+    
+    LaunchedEffect(departure.departureUnix) {
+        while (true) {
+            val nowSecs = System.currentTimeMillis() / 1000
+            val diffSecs = departure.departureUnix - nowSecs
+            val newMinutes = kotlin.math.max(0, (diffSecs / 60).toInt())
+            if (currentMinutes != newMinutes) {
+                currentMinutes = newMinutes
+            }
+            kotlinx.coroutines.delay(5000) // On vérifie l'heure toutes les 5s
+        }
+    }
+
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+    val badgeColor = remember(departure.lineColor) {
+        val hex = departure.lineColor
+        if (hex != null) {
+            try {
+                androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(hex))
+            } catch (e: Exception) {
+                null
+            }
+        } else null
+    } ?: primaryColor
+
+    val textColor = remember(badgeColor) {
+        if (badgeColor == primaryColor) {
+            onPrimaryColor
+        } else if (badgeColor.luminance() > 0.5f) {
+            androidx.compose.ui.graphics.Color.Black
+        } else {
+            androidx.compose.ui.graphics.Color.White
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val realtimeAlpha by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 2000
+                1.0f at 0
+                1.0f at 999
+                0.3f at 1000
+                0.3f at 2000
+            },
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "alpha"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -165,15 +233,15 @@ private fun DepartureRow(departure: Departure) {
         // Badge ligne
         Surface(
             shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(width = 48.dp, height = 32.dp),
+            color = badgeColor,
+            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 32.dp),
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp)) {
                 Text(
                     departure.line,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = textColor,
                 )
             }
         }
@@ -198,25 +266,15 @@ private fun DepartureRow(departure: Departure) {
 
         Spacer(Modifier.width(8.dp))
 
-        // RT / SCH badge
-        Surface(
-            shape = MaterialTheme.shapes.small,
-            color = if (departure.isRealtime) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-        ) {
-            Text(
-                if (departure.isRealtime) "RT" else "SCH",
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = if (departure.isRealtime) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+        // Icône Pulsante si Temps Réel
+        if (departure.isRealtime) {
+            Icon(
+                painter = painterResource(id = R.drawable.rss_feed_24),
+                contentDescription = "Temps réel",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(20.dp)
+                    .alpha(realtimeAlpha) // Applique l'animation de respiration
             )
         }
 
@@ -224,12 +282,12 @@ private fun DepartureRow(departure: Departure) {
 
         // Minutes
         Text(
-            "${departure.minutesUntilDeparture} min",
+            "$currentMinutes min",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = when {
-                departure.minutesUntilDeparture <= 2 -> MaterialTheme.colorScheme.error
-                departure.minutesUntilDeparture <= 5 -> MaterialTheme.colorScheme.primary
+                currentMinutes <= 2 -> MaterialTheme.colorScheme.error
+                currentMinutes <= 5 -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurface
             },
         )

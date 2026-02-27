@@ -15,6 +15,7 @@ fun StopDto.toStopInfo() = StopInfo(
     parentStationId = parentStationId,
     transportModes = transportModes,
     lineHints = lineHints,
+    lineHintColors = lineHintColors ?: emptyMap(),
 )
 
 fun DepartureDto.toDeparture() = Departure(
@@ -22,6 +23,7 @@ fun DepartureDto.toDeparture() = Departure(
     stopName = stopName,
     routeId = routeId,
     line = line,
+    lineColor = lineColor,
     destination = destination,
     departureUnix = departureUnix,
     departureIso = departureIso,
