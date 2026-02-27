@@ -24,7 +24,7 @@ public final class FavoritesStore {
         }
 
         if let legacyStops = try? decoder.decode([StopInfo].self, from: data) {
-            let migrated = legacyStops.map { FavoriteStop(stop: $0, selectedLines: [], logicalStopId: nil) }
+            let migrated = legacyStops.map { FavoriteStop(stop: $0, selectedLines: []) }
             save(migrated)
             return migrated
         }
@@ -44,37 +44,13 @@ public final class FavoritesStore {
         let normalizedSelection = Array(Set(selectedLines)).sorted { lhs, rhs in
             lhs.localizedStandardCompare(rhs) == .orderedAscending
         }
-        let existingLogicalStopId = current.first(where: { $0.id == stop.id })?.logicalStopId
 
-        let favorite = FavoriteStop(
-            stop: stop,
-            selectedLines: normalizedSelection,
-            logicalStopId: existingLogicalStopId
-        )
+        let favorite = FavoriteStop(stop: stop, selectedLines: normalizedSelection)
         if let index = current.firstIndex(where: { $0.id == stop.id }) {
             current[index] = favorite
         } else {
             current.append(favorite)
         }
-        save(current)
-    }
-
-    public func updateLogicalStopId(stopId: String, logicalStopId: Int?) {
-        var current = all()
-        guard let index = current.firstIndex(where: { $0.id == stopId }) else {
-            return
-        }
-
-        let existing = current[index]
-        if existing.logicalStopId == logicalStopId {
-            return
-        }
-
-        current[index] = FavoriteStop(
-            stop: existing.stop,
-            selectedLines: existing.selectedLines,
-            logicalStopId: logicalStopId
-        )
         save(current)
     }
 

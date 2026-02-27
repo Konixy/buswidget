@@ -5,7 +5,6 @@ import * as v from "valibot";
 
 import { env } from "./env";
 import {
-  getRouenDeparturesForLogicalStop,
   getRouenDeparturesForStop,
   searchRouenStops,
 } from "./lib/rouen";
@@ -54,15 +53,6 @@ type AppDeps = {
   searchStops: (args: { query: string; limit: number; staticGtfsUrl: string; staticCacheTtlMinutes: number }) => Promise<unknown>;
   getDepartures: (args: {
     stopId: string;
-    maxMinutesAhead: number;
-    limit: number;
-    lines: string[];
-    staticGtfsUrl: string;
-    staticCacheTtlMinutes: number;
-    tripUpdatesUrls: string[];
-  }) => Promise<unknown>;
-  getDeparturesByLogicalStopId: (args: {
-    logicalStopId: number;
     maxMinutesAhead: number;
     limit: number;
     lines: string[];
@@ -163,60 +153,6 @@ export const createApp = (deps: AppDeps) => {
     }
   });
 
-  app.get("/v1/rouen/logical-stops/:logicalStopId/departures", async (c) => {
-    const startedAtMs = performance.now();
-    const logicalStopIdValue = c.req.param("logicalStopId").trim();
-    const logicalStopId = Number(logicalStopIdValue);
-    if (!logicalStopIdValue || !Number.isInteger(logicalStopId) || logicalStopId <= 0) {
-      return withTimingHeaders(
-        c.json({ error: "logicalStopId must be a positive integer" }, 400),
-        "departures_logical",
-        startedAtMs,
-      );
-    }
-
-    const parsed = v.safeParse(departuresQuerySchema, c.req.query());
-    if (!parsed.success) {
-      return withTimingHeaders(
-        c.json(
-          {
-            error: "Invalid query parameters",
-            details: formatIssues(parsed.issues),
-          },
-          400,
-        ),
-        "departures_logical",
-        startedAtMs,
-      );
-    }
-
-    try {
-      const data = await deps.getDeparturesByLogicalStopId({
-        logicalStopId,
-        limit: parsed.output.limit,
-        maxMinutesAhead: parsed.output.maxMinutes,
-        lines: parsed.output.lines,
-        staticGtfsUrl: deps.config.rouenStaticGtfsUrl,
-        staticCacheTtlMinutes: deps.config.rouenStaticCacheTtlMinutes,
-        tripUpdatesUrls: deps.config.rouenTripUpdatesUrls,
-      });
-      return withTimingHeaders(c.json(data), "departures_logical", startedAtMs);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      return withTimingHeaders(
-        c.json(
-          {
-            error: "Failed to load departures",
-            message,
-          },
-          502,
-        ),
-        "departures_logical",
-        startedAtMs,
-      );
-    }
-  });
-
   return app;
 };
 
@@ -224,7 +160,6 @@ const app = createApp({
   config: env,
   searchStops: searchRouenStops,
   getDepartures: getRouenDeparturesForStop,
-  getDeparturesByLogicalStopId: getRouenDeparturesForLogicalStop,
 });
 
 const getLanUrls = (host: string, port: number): string[] => {

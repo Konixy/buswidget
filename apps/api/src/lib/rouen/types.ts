@@ -73,7 +73,6 @@ export type StopDeparturesResponse = {
   generatedAtUnix: number;
   feedTimestampUnix: number;
   stop: StopInfo | null;
-  logicalStopId: number | null;
   departures: Departure[];
 };
 

@@ -1,12 +1,8 @@
 import {
   fetchCitywayLogicalDepartures,
-  fetchCitywayTimetableByLogicalStop,
   fetchCitywayTripPointsNear,
   mapStopToCitywayPhysicalId,
-  parseCitywayServerTimeToUnix,
   toCitywayDepartureUnix,
-  toDeparturesFromTimetable,
-  toLogicalStopInfo,
 } from "./cityway";
 import { DEFAULT_STRING, normalizeHexColor, normalizeLineName } from "./helpers";
 import { loadRouenStaticData } from "./static-data";
@@ -37,7 +33,6 @@ export const getRouenDeparturesForStop = async (args: {
       generatedAtUnix: nowUnix,
       feedTimestampUnix: nowUnix,
       stop: null,
-      logicalStopId: null,
       departures: [],
     };
   }
@@ -69,7 +64,6 @@ export const getRouenDeparturesForStop = async (args: {
       generatedAtUnix: nowUnix,
       feedTimestampUnix: nowUnix,
       stop: requestedStop,
-      logicalStopId: null,
       departures: [],
     };
   }
@@ -187,45 +181,6 @@ export const getRouenDeparturesForStop = async (args: {
     generatedAtUnix: nowUnix,
     feedTimestampUnix: nowUnix,
     stop: requestedStop,
-    logicalStopId,
     departures: departures.slice(0, args.limit),
-  };
-};
-
-export const getRouenDeparturesForLogicalStop = async (args: {
-  logicalStopId: number;
-  maxMinutesAhead: number;
-  limit: number;
-  lines: string[];
-  staticGtfsUrl: string;
-  staticCacheTtlMinutes: number;
-  tripUpdatesUrls: string[];
-}): Promise<StopDeparturesResponse> => {
-  const nowUnix = Math.floor(Date.now() / 1000);
-  const maxUnix = nowUnix + args.maxMinutesAhead * 60;
-  const lineFilter = new Set(args.lines.map(normalizeLineName));
-  const hasLineFilter = lineFilter.size > 0;
-  const maxItems = Math.max(args.limit * 4, 30);
-  const timetablePayload = await fetchCitywayTimetableByLogicalStop(
-    args.logicalStopId,
-    maxItems,
-  );
-  const departures = toDeparturesFromTimetable({
-    data: timetablePayload.data,
-    sourceUrl: timetablePayload.sourceUrl,
-    logicalStopId: args.logicalStopId,
-    lineFilter,
-    hasLineFilter,
-    nowUnix,
-    maxUnix,
-  }).slice(0, args.limit);
-
-  return {
-    generatedAtUnix: nowUnix,
-    feedTimestampUnix:
-      parseCitywayServerTimeToUnix(timetablePayload.data?.ServerTime) ?? nowUnix,
-    stop: toLogicalStopInfo(args.logicalStopId, timetablePayload.data),
-    logicalStopId: args.logicalStopId,
-    departures,
   };
 };

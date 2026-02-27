@@ -5,6 +5,6 @@ export type {
   StaticGtfsData,
 } from "./types";
 
-export { getRouenDeparturesForLogicalStop, getRouenDeparturesForStop } from "./departures";
+export { getRouenDeparturesForStop } from "./departures";
 export { loadRouenStaticData } from "./static-data";
 export { searchRouenStops } from "./search";

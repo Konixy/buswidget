@@ -8,7 +8,6 @@ import {
 import { env } from "./env";
 import { createApp } from "./index";
 import {
-  getRouenDeparturesForLogicalStop,
   getRouenDeparturesForStop,
   searchRouenStops,
 } from "./lib/rouen";
@@ -17,7 +16,6 @@ const app = createApp({
   config: env,
   searchStops: searchRouenStops,
   getDepartures: getRouenDeparturesForStop,
-  getDeparturesByLogicalStopId: getRouenDeparturesForLogicalStop,
 });
 
 describe("real Rouen APIs", () => {
@@ -71,22 +69,5 @@ describe("real Rouen APIs", () => {
 
     expect(departuresParsed.output.stop?.id).toBe(stopId);
     expect(departuresParsed.output.feedTimestampUnix).toBeGreaterThan(0);
-
-    const logicalStopId = departuresParsed.output.logicalStopId;
-    if (!logicalStopId) {
-      throw new Error("No logicalStopId returned from stop departures");
-    }
-
-    const logicalResponse = await app.request(
-      `/v1/rouen/logical-stops/${logicalStopId}/departures?limit=5&maxMinutes=240`,
-    );
-    expect(logicalResponse.status).toBe(200);
-    const logicalJson = await logicalResponse.json();
-    const logicalParsed = v.safeParse(stopDeparturesResponseSchema, logicalJson);
-    expect(logicalParsed.success).toBe(true);
-    if (!logicalParsed.success) {
-      throw new Error(JSON.stringify(logicalParsed.issues));
-    }
-    expect(logicalParsed.output.logicalStopId).toBe(logicalStopId);
   }, 30000);
 });

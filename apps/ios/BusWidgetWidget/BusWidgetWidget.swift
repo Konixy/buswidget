@@ -141,38 +141,11 @@ struct BusWidgetProvider: AppIntentTimelineProvider {
                         .filter { !$0.isEmpty }
                 )
             ).sorted()
-            let lines = selectedLines.isEmpty ? nil : selectedLines
-            let response: StopDeparturesResponse
-
-            if let logicalStopId = selectedFavorite.logicalStopId {
-                let logicalResponse = try await client.departures(
-                    logicalStopId: logicalStopId,
-                    limit: 6,
-                    maxMinutes: 240,
-                    lines: lines
-                )
-                if logicalResponse.departures.isEmpty {
-                    response = try await client.departures(
-                        stopId: selectedFavorite.stop.id,
-                        limit: 6,
-                        maxMinutes: 240,
-                        lines: lines
-                    )
-                } else {
-                    response = logicalResponse
-                }
-            } else {
-                response = try await client.departures(
-                    stopId: selectedFavorite.stop.id,
-                    limit: 6,
-                    maxMinutes: 240,
-                    lines: lines
-                )
-            }
-
-            favoritesStore.updateLogicalStopId(
+            let response = try await client.departures(
                 stopId: selectedFavorite.stop.id,
-                logicalStopId: response.logicalStopId
+                limit: 6,
+                maxMinutes: 240,
+                lines: selectedLines.isEmpty ? nil : selectedLines
             )
 
             return BusWidgetEntry(

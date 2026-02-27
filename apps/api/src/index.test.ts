@@ -11,14 +11,6 @@ const buildTestApp = () => {
     generatedAtUnix: 0,
     feedTimestampUnix: 0,
     stop: null,
-    logicalStopId: 123,
-    departures: [{ stopId: "S1" }],
-  }));
-  const getDeparturesByLogicalStopId = mock(async (_args: unknown) => ({
-    generatedAtUnix: 0,
-    feedTimestampUnix: 0,
-    stop: null,
-    logicalStopId: 123,
     departures: [{ stopId: "S1" }],
   }));
 
@@ -32,10 +24,9 @@ const buildTestApp = () => {
     },
     searchStops,
     getDepartures,
-    getDeparturesByLogicalStopId,
   });
 
-  return { app, searchStops, getDepartures, getDeparturesByLogicalStopId };
+  return { app, searchStops, getDepartures };
 };
 
 describe("api routes", () => {
@@ -81,27 +72,6 @@ describe("api routes", () => {
     );
   });
 
-  it("returns logical-stop departures payload", async () => {
-    const { app, getDeparturesByLogicalStopId } = buildTestApp();
-
-    const response = await app.request(
-      "/v1/rouen/logical-stops/94220/departures?limit=2&maxMinutes=120&lines=t2,%20f,,T2",
-    );
-    const json = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(Array.isArray(json.departures)).toBe(true);
-    expect(getDeparturesByLogicalStopId).toHaveBeenCalledTimes(1);
-    expect(getDeparturesByLogicalStopId).toHaveBeenCalledWith(
-      expect.objectContaining({
-        logicalStopId: 94220,
-        limit: 2,
-        maxMinutesAhead: 120,
-        lines: ["T2", "F"],
-      }),
-    );
-  });
-
   it("maps departures errors to 502", async () => {
     const app = createApp({
       config: {
@@ -115,13 +85,6 @@ describe("api routes", () => {
       getDepartures: async (_args: unknown) => {
         throw new Error("feed down");
       },
-      getDeparturesByLogicalStopId: async (_args: unknown) => ({
-        generatedAtUnix: 0,
-        feedTimestampUnix: 0,
-        stop: null,
-        logicalStopId: 123,
-        departures: [],
-      }),
     });
 
     const response = await app.request("/v1/rouen/stops/TAE:1131/departures");

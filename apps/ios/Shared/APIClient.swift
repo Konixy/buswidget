@@ -85,41 +85,6 @@ public final class APIClient {
         return try await send(url: url)
     }
 
-    public func departures(
-        logicalStopId: Int,
-        limit: Int = 8,
-        maxMinutes: Int = 90,
-        lines: [String]? = nil
-    ) async throws -> StopDeparturesResponse {
-        var components = URLComponents(
-            url: baseURL.appending(path: "/v1/rouen/logical-stops/\(logicalStopId)/departures"),
-            resolvingAgainstBaseURL: false
-        )
-        var queryItems = [
-            URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "maxMinutes", value: String(maxMinutes))
-        ]
-        if let lines, !lines.isEmpty {
-            let normalizedLines = Array(
-                Set(
-                    lines
-                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                        .filter { !$0.isEmpty }
-                )
-            ).sorted()
-            if !normalizedLines.isEmpty {
-                queryItems.append(URLQueryItem(name: "lines", value: normalizedLines.joined(separator: ",")))
-            }
-        }
-        components?.queryItems = queryItems
-
-        guard let url = components?.url else {
-            throw APIClientError.invalidURL
-        }
-
-        return try await send(url: url)
-    }
-
     private func send<T: Decodable>(url: URL) async throws -> T {
         let (data, response) = try await session.data(from: url)
 
