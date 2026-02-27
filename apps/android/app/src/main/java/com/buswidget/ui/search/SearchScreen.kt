@@ -1,5 +1,6 @@
 package com.buswidget.ui.search
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,15 +10,18 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.Tram
+import androidx.compose.material.icons.rounded.DirectionsBus
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.buswidget.data.local.StopInfo
+import com.buswidget.ui.favorites.FavoriteOptionsSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,15 +33,35 @@ fun SearchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val favorites by viewModel.favoritesFlow.collectAsState()
     val favoriteSetupStop by viewModel.favoriteSetupStop.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text("Arrêts Rouen") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+            LargeTopAppBar(
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.padding(end = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DirectionsBus,
+                                contentDescription = "Logo",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(6.dp).size(28.dp)
+                            )
+                        }
+                        Text("Arrêts du Réseau Astuce", fontWeight = FontWeight.ExtraBold)
+                    }
+                },
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
                 ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
@@ -58,16 +82,28 @@ fun SearchScreen(
                     if (state.results.isEmpty()) {
                         EmptyState("Aucun arrêt trouvé", Icons.Outlined.Tram)
                     } else {
-                        LazyColumn {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
                             items(state.results, key = { it.id }) { stop ->
                                 val isFavorite = favorites.any { it.stop.id == stop.id }
-                                StopSearchRow(
-                                    stop = stop,
-                                    isFavorite = isFavorite,
-                                    onClick = { onNavigateToDepartures(stop.id, stop.name) },
-                                    onFavoriteTap = { viewModel.onFavoriteTap(stop) },
-                                )
-                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                Card(
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    shape = MaterialTheme.shapes.extraLarge,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                ) {
+                                    StopSearchRow(
+                                        stop = stop,
+                                        isFavorite = isFavorite,
+                                        onClick = { onNavigateToDepartures(stop.id, stop.name) },
+                                        onFavoriteTap = { viewModel.onFavoriteTap(stop) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -93,17 +129,25 @@ fun SearchScreen(
 
 @Composable
 private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
-    OutlinedTextField(
+    TextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        placeholder = { Text("Nom d'arrêt, ligne ou ID…") },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        placeholder = { Text("Nom d'arrêt, ligne ou ID...") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
         singleLine = true,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+        )
     )
+    Spacer(modifier = Modifier.height(12.dp))
 }
 
 @Composable
@@ -157,134 +201,7 @@ private fun StopSearchRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FavoriteOptionsSheet(
-    stop: StopInfo,
-    initialSelectedLines: Set<String>,
-    isAlreadyFavorite: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (List<String>) -> Unit,
-    onRemove: () -> Unit,
-) {
-    var selectedLines by remember(stop.id) { mutableStateOf(initialSelectedLines) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onDismiss) { Text("Annuler") }
-                Text(
-                    "Options favori",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                TextButton(onClick = {
-                    onSave(selectedLines.sorted())
-                }) { Text("Enregistrer") }
-            }
-
-            HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
-
-            // Stop info
-            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-                Text(stop.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(stop.modeSummary(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-
-            // Line selection
-            if (stop.lineHints.isNotEmpty()) {
-                Text(
-                    "Filtrer par lignes",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    "Laissez vide pour toutes les lignes",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-
-                // All lines option
-                LineSelectionRow(
-                    title = "Toutes les lignes",
-                    isSelected = selectedLines.isEmpty(),
-                    onClick = { selectedLines = emptySet() },
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                stop.lineHints.forEach { line ->
-                    LineSelectionRow(
-                        title = line,
-                        isSelected = selectedLines.contains(line),
-                        onClick = {
-                            selectedLines = if (selectedLines.contains(line)) {
-                                selectedLines - line
-                            } else {
-                                selectedLines + line
-                            }
-                        },
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                }
-            } else {
-                Text(
-                    "Aucune ligne spécifique trouvée. Toutes les directions seront affichées.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            if (isAlreadyFavorite) {
-                Spacer(Modifier.height(8.dp))
-                HorizontalDivider()
-                TextButton(
-                    onClick = onRemove,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) {
-                    Text("Retirer des favoris")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LineSelectionRow(title: String, isSelected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-}
 
 @Composable
 private fun EmptyState(message: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
@@ -296,13 +213,13 @@ private fun EmptyState(message: String, icon: androidx.compose.ui.graphics.vecto
     }
 }
 
-private fun StopInfo.modeSummary(): String {
+internal fun StopInfo.modeSummary(): String {
     val modes = transportModes.toMutableList()
     if (locationType == 1) modes.add("Station")
     return if (modes.isEmpty()) "Mode inconnu" else modes.joinToString(" | ")
 }
 
-private fun StopInfo.stopLabel(): String {
+internal fun StopInfo.stopLabel(): String {
     stopCode?.takeIf { it.isNotEmpty() }?.let { return "Code $it" }
     return id.split(":").lastOrNull() ?: id
 }

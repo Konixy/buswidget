@@ -1,5 +1,6 @@
 package com.buswidget.ui.favorites
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,10 +8,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,15 +33,35 @@ fun FavoritesScreen(
     viewModel: FavoritesViewModel = hiltViewModel(),
 ) {
     val favorites by viewModel.favorites.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text("Mes favoris") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+            LargeTopAppBar(
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.padding(end = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Star,
+                                contentDescription = "Logo",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(6.dp).size(28.dp)
+                            )
+                        }
+                        Text("Mes favoris", fontWeight = FontWeight.ExtraBold)
+                    }
+                },
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
                 ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
@@ -69,38 +93,41 @@ fun FavoritesScreen(
             }
 
             LazyColumn(
-                modifier = Modifier.padding(padding),
+                modifier = Modifier.padding(padding).fillMaxSize(),
                 state = listState,
+                contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 items(internalFavorites, key = { it.stop.id }) { favorite ->
                     ReorderableItem(reorderableState, key = favorite.stop.id) { isDragging ->
-                        val elevation = if (isDragging) 8.dp else 0.dp
-                        Surface(
-                            shadowElevation = elevation,
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.fillMaxWidth()
+                        val elevation = if (isDragging) 8.dp else 2.dp
+                        val scale = if (isDragging) 1.02f else 1f
+
+                        Card(
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                                .scale(scale)
                         ) {
-                            Column {
-                                FavoriteRow(
-                                    favorite = favorite,
-                                    onClick = { onNavigateToDepartures(favorite.stop.id, favorite.stop.name) },
-                                    onDelete = { viewModel.remove(favorite.stop.id) },
-                                    trailingIcon = {
-                                        Icon(
-                                            painter = painterResource(id = android.R.drawable.ic_menu_sort_by_size),
-                                            contentDescription = "Réorganiser",
-                                            tint = MaterialTheme.colorScheme.outline,
-                                            modifier = Modifier
-                                                .draggableHandle()
-                                                .padding(8.dp)
-                                                .size(24.dp)
-                                        )
-                                    }
-                                )
-                                if (!isDragging) {
-                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            FavoriteRow(
+                                favorite = favorite,
+                                onClick = { onNavigateToDepartures(favorite.stop.id, favorite.stop.name) },
+                                onDelete = { viewModel.remove(favorite.stop.id) },
+                                trailingIcon = {
+                                    Icon(
+                                        painter = painterResource(id = android.R.drawable.ic_menu_sort_by_size),
+                                        contentDescription = "Réorganiser",
+                                        tint = MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier
+                                            .draggableHandle()
+                                            .padding(12.dp)
+                                            .size(28.dp)
+                                    )
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -137,29 +164,33 @@ private fun FavoriteRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 favorite.stop.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            Spacer(modifier = Modifier.height(2.dp))
             if (favorite.stop.transportModes.isNotEmpty()) {
                 Text(
-                    favorite.stop.transportModes.joinToString(" | "),
-                    style = MaterialTheme.typography.bodySmall,
+                    favorite.stop.transportModes.joinToString(" • "),
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Spacer(modifier = Modifier.height(6.dp))
             if (favorite.selectedLines.isEmpty()) {
                 Text(
-                    "Toutes les lignes",
+                    "Toutes lignes actives",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.secondary,
                 )
             } else {
                 Text(
-                    "Lignes : ${favorite.selectedLines.joinToString(", ")}",
+                    "Lignes filtrées : ${favorite.selectedLines.joinToString(", ")}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }

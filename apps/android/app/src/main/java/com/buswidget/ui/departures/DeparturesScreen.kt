@@ -1,11 +1,15 @@
 package com.buswidget.ui.departures
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -15,11 +19,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.animation.core.*
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.buswidget.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.buswidget.data.local.Departure
+import com.buswidget.ui.favorites.FavoriteOptionsSheet
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -31,6 +37,8 @@ fun DeparturesScreen(
     viewModel: DeparturesViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isFavorite by viewModel.isFavorite.collectAsState()
+    val favoriteSetupStop by viewModel.favoriteSetupStop.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
@@ -48,20 +56,49 @@ fun DeparturesScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stopName, maxLines = 1) },
+            LargeTopAppBar(
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.padding(end = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Place,
+                                contentDescription = "Lieu",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(6.dp).size(28.dp)
+                            )
+                        }
+                        Text(stopName, maxLines = 1, fontWeight = FontWeight.ExtraBold) 
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                actions = {
+                    IconButton(onClick = viewModel::onFavoriteTap) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                            contentDescription = "Favori",
+                            tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
                 ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
@@ -104,6 +141,7 @@ fun DeparturesScreen(
                         }
 
                         if (state.departures.isEmpty()) {
+                            // ... Aucun changement pour la vue vide ...
                             item {
                                 Box(
                                     Modifier.fillParentMaxSize(),
@@ -125,14 +163,39 @@ fun DeparturesScreen(
                             }
                         } else {
                             items(state.departures, key = { it.departureIso + it.line }) { departure ->
-                                DepartureRow(departure)
-                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                Card(
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    shape = MaterialTheme.shapes.extraLarge,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                ) {
+                                    DepartureRow(departure)
+                                }
                             }
+                            item { Spacer(Modifier.height(16.dp)) }
                         }
                     }
                 }
             }
         }
+    }
+
+    favoriteSetupStop?.let { stop ->
+        // On récupère les lignes initiales si déjà favori, sinon on propose "tout"
+        val state = uiState as? DeparturesUiState.Success
+        val initialLines = state?.preferredLines ?: emptySet()
+        
+        FavoriteOptionsSheet(
+            stop = stop,
+            initialSelectedLines = initialLines,
+            isAlreadyFavorite = isFavorite,
+            onDismiss = viewModel::dismissFavoriteSetup,
+            onSave = { lines -> viewModel.saveFavorite(stop, lines) },
+            onRemove = { viewModel.removeFavorite(stop.id) },
+        )
     }
 }
 
@@ -143,7 +206,9 @@ private fun MetadataCard(state: DeparturesUiState.Success) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
+        shape = MaterialTheme.shapes.extraLarge,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(

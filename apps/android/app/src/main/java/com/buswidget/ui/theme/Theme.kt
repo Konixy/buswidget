@@ -10,41 +10,37 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val BusBlue = Color(0xFF1565C0)
-private val BusBlueDark = Color(0xFF5E92F3)
-private val BusGreen = Color(0xFF2E7D32)
-private val BusGreenDark = Color(0xFF69F0AE)
-private val SurfaceDark = Color(0xFF1A1C1E)
-private val BackgroundDark = Color(0xFF111316)
+private val BusBlue = Color(0xFF2563EB) // Bleu moderne éclatant
+private val BusBlueDark = Color(0xFF3B82F6) // Bleu lumineux la nuit
+private val SurfaceDark = Color(0xFF18181B) // Zinc 900 (très lisible pour les Cartes)
+private val BackgroundDark = Color(0xFF000000) // Noir OLED absolu
 
 private val LightColorScheme = lightColorScheme(
     primary = BusBlue,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFD6E4FF),
-    onPrimaryContainer = Color(0xFF001945),
-    secondary = Color(0xFF546E9A),
-    onSecondary = Color.White,
-    background = Color(0xFFF8F9FF),
+    primaryContainer = Color(0xFFDBEAFE),
+    onPrimaryContainer = Color(0xFF1E3A8A),
+    background = Color(0xFFF3F4F6),
+    onBackground = Color(0xFF111827),
     surface = Color.White,
-    onSurface = Color(0xFF191C20),
-    surfaceVariant = Color(0xFFE3E8F3),
-    onSurfaceVariant = Color(0xFF44474F),
-    outline = Color(0xFF74777F),
+    onSurface = Color(0xFF111827),
+    surfaceVariant = Color(0xFFE5E7EB),
+    onSurfaceVariant = Color(0xFF4B5563),
+    outline = Color(0xFF9CA3AF),
 )
 
 private val DarkColorScheme = darkColorScheme(
     primary = BusBlueDark,
-    onPrimary = Color(0xFF002984),
-    primaryContainer = Color(0xFF0A3880),
-    onPrimaryContainer = Color(0xFFD6E4FF),
-    secondary = Color(0xFF9DB4DE),
-    onSecondary = Color(0xFF243354),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF1E3A8A),
+    onPrimaryContainer = Color(0xFFDBEAFE),
     background = BackgroundDark,
+    onBackground = Color(0xFFF9FAFB),
     surface = SurfaceDark,
-    onSurface = Color(0xFFE2E2E9),
-    surfaceVariant = Color(0xFF292C32),
-    onSurfaceVariant = Color(0xFFC5C7D4),
-    outline = Color(0xFF8F929E),
+    onSurface = Color(0xFFF9FAFB),
+    surfaceVariant = Color(0xFF2C2C2E),
+    onSurfaceVariant = Color(0xFFD1D5DB),
+    outline = Color(0xFF6B7280),
 )
 
 @Composable
