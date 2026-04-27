@@ -7,6 +7,10 @@ const buildTestApp = () => {
     count: 1,
     results: [{ id: "S1", name: "Stop 1", lat: null, lon: null }],
   }));
+  const searchNearbyStops = mock(async (_args: unknown) => ({
+    count: 0,
+    results: [],
+  }));
   const getDepartures = mock(async (_args: unknown) => ({
     generatedAtUnix: 0,
     feedTimestampUnix: 0,
@@ -22,11 +26,12 @@ const buildTestApp = () => {
       rouenTripUpdatesUrls: ["https://example.com/tripupdates.pb"],
       rouenStaticCacheTtlMinutes: 60,
     },
+    searchNearbyStops,
     searchStops,
     getDepartures,
   });
 
-  return { app, searchStops, getDepartures };
+  return { app, searchStops, searchNearbyStops, getDepartures };
 };
 
 describe("api routes", () => {
@@ -81,6 +86,7 @@ describe("api routes", () => {
         rouenTripUpdatesUrls: ["https://example.com/tripupdates.pb"],
         rouenStaticCacheTtlMinutes: 60,
       },
+      searchNearbyStops: async (_args: unknown) => ({ count: 0, results: [] }),
       searchStops: async (_args: unknown) => ({ count: 0, results: [] }),
       getDepartures: async (_args: unknown) => {
         throw new Error("feed down");

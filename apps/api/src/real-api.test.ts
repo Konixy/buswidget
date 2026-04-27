@@ -9,11 +9,13 @@ import { env } from "./env";
 import { createApp } from "./index";
 import {
   getRouenDeparturesForStop,
+  searchNearbyStops,
   searchRouenStops,
 } from "./lib/rouen";
 
 const app = createApp({
   config: env,
+  searchNearbyStops,
   searchStops: searchRouenStops,
   getDepartures: getRouenDeparturesForStop,
 });
