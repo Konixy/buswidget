@@ -6,7 +6,7 @@
         </trust-anchors>
     </base-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">buswidget-production.up.railway.app</domain>
+        <domain includeSubdomains="true">buswidget-api.vercel.app</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
 </network-security-config>

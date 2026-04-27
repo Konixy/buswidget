@@ -72,7 +72,7 @@
 		C543EED622AB7F0ECFDBCB0B /* SearchStopsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchStopsView.swift; sourceTree = "<group>"; };
 		CED26FD21CBEC7969A0A4C69 /* FavoritesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesStore.swift; sourceTree = "<group>"; };
 		D12F493FABCF1A6113B1F068 /* BusWidgetWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BusWidgetWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		DA86279CC31FC3947737D090 /* BusWidget.icon */ = {isa = PBXFileReference; path = BusWidget.icon; sourceTree = "<group>"; };
+		DA86279CC31FC3947737D090 /* BusWidget.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = BusWidget.icon; sourceTree = "<group>"; };
 		E90A55CA77F17585611C1320 /* BusWidgetWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusWidgetWidgetBundle.swift; sourceTree = "<group>"; };
 		F75A4FA2801EAB517C9599B5 /* BusWidgetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusWidgetApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -194,7 +194,6 @@
 				};
 			};
 			buildConfigurationList = 0D090B3E810DFD285EBB3EEC /* Build configuration list for PBXProject "BusWidget" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -204,6 +203,7 @@
 			mainGroup = 5890EEC53418E6074573BDC7;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 1B6EAEBD4267CC84527F9970 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (

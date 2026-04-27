@@ -35,7 +35,7 @@ targets:
               - buswidget
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
-        API_BASE_URL: https://buswidget-production.up.railway.app
+        API_BASE_URL: https://buswidget-api.vercel.app
     entitlements:
       path: BusWidget/BusWidget.entitlements
       properties:
@@ -62,7 +62,7 @@ targets:
       path: BusWidgetWidget/Info.plist
       properties:
         CFBundleDisplayName: BusWidget Widget
-        API_BASE_URL: https://buswidget-production.up.railway.app
+        API_BASE_URL: https://buswidget-api.vercel.app
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

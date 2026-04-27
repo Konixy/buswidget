@@ -17,7 +17,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField("String", "API_BASE_URL", "\"https://buswidget-production.up.railway.app\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://buswidget-api.vercel.app\"")
     }
 
     buildTypes {
